@@ -8,3 +8,10 @@ public record TelegramConfig
 
     public HashSet<int> AllowedUsers { get; init; } = new();
 }
+
+public record TelegramProxyConfig
+{
+    public string? Host { get; init; }
+    public string? Username { get; init; }
+    public string? Password { get; init; }
+}

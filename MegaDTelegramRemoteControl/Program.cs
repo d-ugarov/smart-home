@@ -18,6 +18,8 @@ using NLog;
 using NLog.Web;
 using System;
 using System.IO;
+using System.Net;
+using System.Net.Http;
 
 var logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
@@ -84,8 +86,21 @@ void AddSystemServices(WebApplicationBuilder builder)
 void ConfigureServices(WebApplicationBuilder builder)
 {
     var platformConfig = builder.GetConfigByType<PlatformConfig>() ?? new();
+    var telegramProxyConfig = builder.GetConfigByType<TelegramProxyConfig>() ?? new();
 
-    builder.Services.AddSingleton<IBotService, TelegramBotService>();
+    builder.Services.AddHttpClient<IBotService, TelegramBotService>()
+           .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+                                                     {
+                                                         Proxy = !string.IsNullOrEmpty(telegramProxyConfig.Host) &&
+                                                                 !string.IsNullOrEmpty(telegramProxyConfig.Username) &&
+                                                                 !string.IsNullOrEmpty(telegramProxyConfig.Password)
+                                                             ? new WebProxy
+                                                               {
+                                                                   Address = new Uri(telegramProxyConfig.Host),
+                                                                   Credentials = new NetworkCredential(telegramProxyConfig.Username, telegramProxyConfig.Password),
+                                                               }
+                                                             : null,
+                                                     });
     builder.Services.AddTransient<IBotHandler, TelegramBotHandler>();
     builder.Services.AddTransient<IMegaDEventsHandler, MegaDEventsHandler>();
     builder.Services.AddTransient<IHomeTriggerProcessor, HomeTriggerProcessor>();
