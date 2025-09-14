@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Args;
@@ -20,6 +21,7 @@ public class TelegramBotService : IBotService
     private readonly TelegramConfig telegramConfig;
     private TelegramBotClient bot = null!;
 
+    private readonly HttpClient httpClient;
     private readonly IBotHandler botHandler;
     private readonly ILogger<TelegramBotService> logger;
 
@@ -27,10 +29,12 @@ public class TelegramBotService : IBotService
 
     public TelegramBotService(IOptions<TelegramConfig> telegramConfig,
         IBotHandler botHandler,
+        HttpClient httpClient,
         ILogger<TelegramBotService> logger)
     {
         this.telegramConfig = telegramConfig.Value;
         this.botHandler = botHandler;
+        this.httpClient = httpClient;
         this.logger = logger;
     }
 
@@ -43,7 +47,7 @@ public class TelegramBotService : IBotService
 
             logger.LogTrace("TelegramBot starting..");
 
-            bot = new TelegramBotClient(telegramConfig.BotAccessToken);
+            bot = new TelegramBotClient(telegramConfig.BotAccessToken, httpClient);
             bot.OnMessage += async (_, args) => await OnMessageReceivedAsync(args);
             bot.OnCallbackQuery += async (_, args) => await OnCallbackQueryReceivedAsync(args);
             bot.StartReceiving();
