@@ -1,0 +1,80 @@
+// Converted from the config of master by SmartHome.ConfigConverter; edited by hand from now on.
+// Entities of the house and the bot menu.
+{
+  "Home": {
+    "Entities": [
+      { "Id": "button.hall", "Name": "Hall switch", "Type": "Button" },
+      { "Id": "button.kitchen", "Name": "Kitchen switch", "Type": "Button" },
+      { "Id": "button.bathroom", "Name": "Bathroom switch", "Type": "Button" },
+      { "Id": "button.bedroom_left", "Name": "Bedroom switch left", "Type": "Button" },
+      { "Id": "button.bedroom_right", "Name": "Bedroom switch right", "Type": "Button" },
+      { "Id": "sensor.bathroom_leak", "Name": "Leak sensor", "Type": "Sensor", "Icons": { "On": "🔴", "Off": "🔘" } },
+      { "Id": "light.hall", "Name": "Hall light", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" } },
+      { "Id": "light.kitchen", "Name": "Kitchen light", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" } },
+      { "Id": "light.kitchen_apron", "Name": "Kitchen apron", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" } },
+      { "Id": "light.bathroom", "Name": "Bathroom light", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" } },
+      { "Id": "fan.bathroom", "Name": "Bathroom fan", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" } },
+      { "Id": "power.main_contactor", "Name": "Main contactor", "Type": "Switch" },
+      { "Id": "valve.bathroom", "Name": "Bathroom water", "Type": "Valve" },
+      { "Id": "button.living_room", "Name": "Living room switch", "Type": "Button" },
+      { "Id": "button.living_room_2", "Name": "Living room switch 2", "Type": "Button" },
+      { "Id": "light.living_room_chandelier", "Name": "Living room chandelier", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" } },
+      { "Id": "light.living_room_spots", "Name": "Living room spots", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" } },
+      { "Id": "light.bedroom", "Name": "Bedroom light", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" } },
+      { "Id": "light.bedroom_night", "Name": "Bedroom night light", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" } },
+      { "Id": "heater.floor", "Name": "Floor heating", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" } }
+    ],
+    "Menu": [
+      {
+        "Id": "rooms",
+        "Title": "🏠 Rooms",
+        "Pages": [
+          { "Id": "hall", "Title": "Hall", "Items": [ { "Entity": "light.hall", "Label": "Light" } ] },
+          {
+            "Id": "kitchen",
+            "Title": "Kitchen",
+            "Items": [ { "Entity": "light.kitchen", "Label": "Light" }, { "Entity": "light.kitchen_apron", "Label": "Apron" } ]
+          },
+          {
+            "Id": "bathroom",
+            "Title": "Bathroom",
+            "Pages": [
+              {
+                "Id": "bathroom_water",
+                "Title": "💧 Water",
+                "Items": [
+                  { "Entity": "sensor.bathroom_leak" },
+                  { "Entity": "valve.bathroom", "Label": "Open valves", "Valve": "Open" },
+                  { "Entity": "valve.bathroom", "Label": "Close valves", "Valve": "Close" }
+                ]
+              }
+            ],
+            "Items": [ { "Entity": "light.bathroom", "Label": "Light" }, { "Entity": "fan.bathroom", "Label": "Fan" } ]
+          },
+          {
+            "Id": "living_room",
+            "Title": "Living room",
+            "Items": [ { "Entity": "light.living_room_chandelier" }, { "Entity": "light.living_room_spots" } ]
+          },
+          {
+            "Id": "bedroom",
+            "Title": "Bedroom",
+            "Items": [ { "Entity": "light.bedroom", "Label": "Light" }, { "Entity": "light.bedroom_night", "Label": "Night light" } ]
+          }
+        ]
+      },
+      { "Id": "now_on", "Title": "✔️ Now on", "ListSwitches": "On" },
+      {
+        "Id": "engineering",
+        "Title": "🛠 Engineering",
+        "Items": [
+          { "Entity": "power.main_contactor" },
+          { "Entity": "heater.floor" },
+          { "Entity": "sensor.bathroom_leak" },
+          { "Entity": "valve.bathroom", "Label": "Valves open", "Valve": "Open" },
+          { "Entity": "valve.bathroom", "Label": "Valves close", "Valve": "Close" }
+        ]
+      }
+    ]
+  }
+}

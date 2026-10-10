@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "SmartHome.Host": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "debug/menu",
+      "applicationUrl": "http://localhost:5075",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

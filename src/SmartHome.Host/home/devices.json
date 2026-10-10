@@ -1,0 +1,43 @@
+// Converted from the config of master by SmartHome.ConfigConverter; edited by hand from now on.
+// Controllers and what is bound to their ports. Passwords are secrets: appsettings of the server.
+{
+  "MegaD": {
+    "Controllers": {
+      "1": {
+        "Name": "MegaD-1",
+        "Address": "http://192.168.0.11",
+        "Password": "sec",
+        "HardwareInputs": [ 6, 15 ],
+        "Ports": {
+          "0": "button.hall",
+          "1": "button.kitchen",
+          "2": "button.bathroom",
+          "3": "button.bedroom_left",
+          "4": "button.bedroom_right",
+          "6": "sensor.bathroom_leak",
+          "7": "light.hall",
+          "8": "light.kitchen",
+          "9": "light.kitchen_apron",
+          "10": "light.bathroom",
+          "11": "fan.bathroom",
+          "14": "power.main_contactor"
+        },
+        "Valves": [ { "Entity": "valve.bathroom", "OpenInput": 15, "CloseInput": 6, "OpenRelay": 12, "CloseRelay": 13 } ]
+      },
+      "2": {
+        "Name": "MegaD-2",
+        "Address": "http://192.168.0.12",
+        "Password": "sec",
+        "Ports": {
+          "0": "button.living_room",
+          "1": "button.living_room_2",
+          "7": "light.living_room_chandelier",
+          "8": "light.living_room_spots",
+          "9": "light.bedroom",
+          "10": "light.bedroom_night",
+          "11": "heater.floor"
+        }
+      }
+    }
+  }
+}

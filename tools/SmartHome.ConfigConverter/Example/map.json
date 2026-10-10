@@ -1,0 +1,42 @@
+{
+  // Conversion of the example flat (master-appsettings.json → src/SmartHome.Host/home).
+  "Ports": {
+    "1/0": "button.hall",
+    "1/1": "button.kitchen",
+    "1/2": "button.bathroom",
+    "1/3": "button.bedroom_left",
+    "1/4": "button.bedroom_right",
+    "1/6": "sensor.bathroom_leak",
+    "1/7": "light.hall",
+    "1/8": "light.kitchen",
+    "1/9": "light.kitchen_apron",
+    "1/10": "light.bathroom",
+    "1/11": "fan.bathroom",
+    "1/14": "power.main_contactor",
+    "2/0": "button.living_room",
+    "2/1": "button.living_room_2",
+    "2/7": "light.living_room_chandelier",
+    "2/8": "light.living_room_spots",
+    "2/9": "light.bedroom",
+    "2/10": "light.bedroom_night",
+    "2/11": "heater.floor"
+  },
+  "Pages": {
+    "🏠 Rooms": "rooms",
+    "🏠 Rooms / Hall": "hall",
+    "🏠 Rooms / Kitchen": "kitchen",
+    "🏠 Rooms / Bathroom": "bathroom",
+    "🏠 Rooms / Bathroom / 💧 Water": "bathroom_water",
+    "🏠 Rooms / Living room": "living_room",
+    "🏠 Rooms / Bedroom": "bedroom",
+    "✔️ Now on": "now_on",
+    "🛠 Engineering": "engineering"
+  },
+  // Input 6 is the leak sensor: its scenario closes the valves. Input 15 has the opening scenario, no button on it.
+  "HardwareInputs": {
+    "1": [ 6, 15 ]
+  },
+  "Valves": [
+    { "Id": "valve.bathroom", "Name": "Bathroom water", "Controller": "1", "OpenInput": 15, "CloseInput": 6, "OpenRelay": 12, "CloseRelay": 13 }
+  ]
+}

@@ -1,0 +1,48 @@
+using Microsoft.Extensions.Options;
+
+namespace SmartHome.Clients.Telegram;
+
+public sealed class TelegramOptions
+{
+    public const string Section = "Telegram";
+
+    /// <summary> A secret: appsettings of the server. </summary>
+    public string BotToken { get; init; } = "";
+
+    /// <summary> Telegram user ids allowed to use the bot; everybody else is ignored. Must not be empty. </summary>
+    public HashSet<long> AllowedUsers { get; init; } = [];
+
+    /// <summary> Where notifications go (the owner's chat); none - notifications are not sent. </summary>
+    public long? NotificationChatId { get; init; }
+
+    public TelegramProxyOptions? Proxy { get; init; }
+
+    /// <summary> Local runs: Telegram is never contacted, the menu is available at <c>/debug/menu</c>. </summary>
+    public bool UseFakeBot { get; init; }
+}
+
+public sealed class TelegramProxyOptions
+{
+    public string Address { get; init; } = "";
+    public string? Username { get; init; }
+    public string? Password { get; init; }
+}
+
+internal sealed class TelegramOptionsValidator : IValidateOptions<TelegramOptions>
+{
+    public ValidateOptionsResult Validate(string? name, TelegramOptions options)
+    {
+        var errors = new List<string>();
+
+        if (options.AllowedUsers.Count == 0)
+            errors.Add("Telegram:AllowedUsers is empty - nobody could use the bot (an empty list must not mean 'everybody')");
+
+        if (!options.UseFakeBot && string.IsNullOrWhiteSpace(options.BotToken))
+            errors.Add("Telegram:BotToken is required (or Telegram:UseFakeBot for local runs)");
+
+        if (options.Proxy != null && !Uri.TryCreate(options.Proxy.Address, UriKind.Absolute, out _))
+            errors.Add("Telegram:Proxy:Address must be a URL");
+
+        return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
+    }
+}

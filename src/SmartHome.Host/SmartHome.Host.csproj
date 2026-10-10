@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\SmartHome.Core\SmartHome.Core.csproj" />
+    <ProjectReference Include="..\SmartHome.Integrations.MegaD\SmartHome.Integrations.MegaD.csproj" />
+    <ProjectReference Include="..\SmartHome.Clients.Telegram\SmartHome.Clients.Telegram.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" />
+    <PackageReference Include="NLog" />
+    <PackageReference Include="NLog.Web.AspNetCore" />
+  </ItemGroup>
+
+  <!--
+    Configs in the repo describe the example flat for local runs. The server keeps its own appsettings.json (settings
+    and secrets), nlog.config and house files (home/*.json): publish must not ship or overwrite them.
+  -->
+  <ItemGroup>
+    <Content Update="appsettings*.json;home\**" CopyToPublishDirectory="Never" />
+    <Content Update="nlog.config" CopyToOutputDirectory="Always" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+</Project>

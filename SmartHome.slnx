@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SmartHome.Clients.Telegram/SmartHome.Clients.Telegram.csproj" />
+    <Project Path="src/SmartHome.Core/SmartHome.Core.csproj" />
+    <Project Path="src/SmartHome.Host/SmartHome.Host.csproj" />
+    <Project Path="src/SmartHome.Integrations.MegaD/SmartHome.Integrations.MegaD.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SmartHome.Tests/SmartHome.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/SmartHome.ConfigConverter/SmartHome.ConfigConverter.csproj" />
+  </Folder>
+</Solution>

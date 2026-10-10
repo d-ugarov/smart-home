@@ -1,0 +1,123 @@
+// Converted from the config of master by SmartHome.ConfigConverter; edited by hand from now on.
+// Input rules: a press of a button → conditions on the switches → commands.
+{
+  "Home": {
+    "Rules": [
+      {
+        "Button": "button.hall",
+        "Presses": [ "Press", "Click" ],
+        "Actions": [ { "Entity": "light.hall", "Command": "Toggle" } ],
+        "Response": "Handled"
+      },
+      {
+        "Button": "button.hall",
+        "Presses": [ "LongPress" ],
+        "Actions": [
+          { "Entity": "light.hall", "Command": "Off" },
+          { "Entity": "light.kitchen", "Command": "Off" },
+          { "Entity": "light.kitchen_apron", "Command": "Off" },
+          { "Entity": "light.bathroom", "Command": "Off" },
+          { "Entity": "light.living_room_chandelier", "Command": "Off" },
+          { "Entity": "light.living_room_spots", "Command": "Off" },
+          { "Entity": "light.bedroom", "Command": "Off" },
+          { "Entity": "light.bedroom_night", "Command": "Off" }
+        ],
+        "Response": "Handled"
+      },
+      {
+        "Button": "button.kitchen",
+        "Presses": [ "Press", "Click" ],
+        "Actions": [ { "Entity": "light.kitchen", "Command": "Toggle" } ],
+        "Response": "Handled"
+      },
+      {
+        "Button": "button.kitchen",
+        "Presses": [ "DoubleClick" ],
+        "Actions": [ { "Entity": "light.kitchen_apron", "Command": "Toggle" } ],
+        "Response": "Handled"
+      },
+      {
+        "Button": "button.bathroom",
+        "Presses": [ "Press", "Click" ],
+        "Condition": { "Type": "AllAre", "State": "Off", "Entities": [ "light.bathroom" ] },
+        "Actions": [ { "Entity": "light.bathroom", "Command": "On" }, { "Entity": "fan.bathroom", "Command": "On", "DelayBefore": "00:00:00.100" } ],
+        "Response": "Handled",
+        "IsFinal": true
+      },
+      {
+        "Button": "button.bathroom",
+        "Presses": [ "Press", "Click" ],
+        "Actions": [ { "Entity": "light.bathroom", "Command": "Off" } ],
+        "Response": "Handled"
+      },
+      {
+        "Button": "button.bedroom_left",
+        "Presses": [ "Press", "Click" ],
+        "Condition": { "Type": "Mixed", "Entities": [ "light.bedroom", "light.bedroom_night" ] },
+        "Actions": [ { "Entity": "light.bedroom", "Command": "Off" }, { "Entity": "light.bedroom_night", "Command": "Off" } ],
+        "Response": "Handled",
+        "IsFinal": true
+      },
+      {
+        "Button": "button.bedroom_left",
+        "Presses": [ "Press", "Click" ],
+        "Actions": [ { "Entity": "light.bedroom", "Command": "Toggle" }, { "Entity": "light.bedroom_night", "Command": "Toggle" } ],
+        "Response": "Handled"
+      },
+      {
+        "Button": "button.bedroom_right",
+        "Presses": [ "Press", "Click" ],
+        "Condition": { "Type": "AnyIs", "State": "On", "Entities": [ "light.bedroom", "light.bedroom_night" ] },
+        "Actions": [ { "Entity": "light.bedroom", "Command": "Off" }, { "Entity": "light.bedroom_night", "Command": "Off" } ],
+        "Response": "Handled",
+        "IsFinal": true
+      },
+      {
+        "Button": "button.bedroom_right",
+        "Presses": [ "Press", "Click" ],
+        "Actions": [ { "Entity": "light.bedroom_night", "Command": "On" } ],
+        "Response": "Handled"
+      },
+      {
+        "Button": "button.bedroom_right",
+        "Presses": [ "LongPress" ],
+        "Condition": { "Type": "AllSame", "Entities": [ "light.bedroom", "light.bedroom_night" ] },
+        "Actions": [ { "Entity": "light.bedroom", "Command": "Toggle" } ],
+        "Response": "Handled"
+      },
+      {
+        "Button": "button.living_room",
+        "Presses": [ "Press", "Click" ],
+        "Condition": { "Type": "AllSame", "Entities": [ "light.living_room_chandelier", "light.living_room_spots" ] },
+        "Actions": [ { "Entity": "light.living_room_chandelier", "Command": "Toggle" }, { "Entity": "light.living_room_spots", "Command": "Toggle" } ],
+        "Response": "Handled",
+        "IsFinal": true
+      },
+      {
+        "Button": "button.living_room",
+        "Presses": [ "Press", "Click" ],
+        "Actions": [ { "Entity": "light.living_room_chandelier", "Command": "Off" }, { "Entity": "light.living_room_spots", "Command": "Off" } ],
+        "Response": "Handled"
+      },
+      {
+        "Button": "button.living_room",
+        "Presses": [ "DoubleClick" ],
+        "Actions": [ { "Entity": "light.living_room_spots", "Command": "Toggle", "DelayAfter": "00:00:00.100" } ],
+        "Response": "Handled"
+      },
+      {
+        "Button": "button.living_room_2",
+        "Presses": [ "Press", "Click" ],
+        "Condition": { "Type": "NoneIs", "State": "On", "Entities": [ "light.living_room_chandelier", "light.living_room_spots" ] },
+        "Actions": [ { "Entity": "light.living_room_chandelier", "Command": "On" } ],
+        "Response": "ControllerActs"
+      },
+      {
+        "Button": "button.living_room_2",
+        "Presses": [ "LongPress" ],
+        "Actions": [ { "Entity": "heater.floor", "Command": "Toggle" } ],
+        "Response": "Handled"
+      }
+    ]
+  }
+}
