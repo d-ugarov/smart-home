@@ -34,6 +34,7 @@ internal sealed class NotificationService(NotificationQueue queue) : IHomeEventH
         RuleCommandExecuted x => $"→ {x.Target.Name}: {Command(x.Command)} — {Outcome(x.Outcome)}",
         ValveCommandExecuted x => $"💧 {x.Valve.Name}: {(x.Command == ValveCommand.Open ? "open" : "close")} — {Outcome(x.Outcome)}",
         AutomationCommandExecuted x => $"🤖 {x.Origin} → {x.Target.Name}: {Texts.Of(x.Command)} — {Outcome(x.Outcome)}",
+        ServerProblem x => $"⚠️ {x.Text}",
         DelayedActionDropped x => $"⚠️ {x.Origin}: {x.Action} not done, {Texts.Duration(x.Late)} late (the server was down)",
         _ => null,
     };

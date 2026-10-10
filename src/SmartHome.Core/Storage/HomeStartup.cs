@@ -12,16 +12,33 @@ namespace SmartHome.Core.Storage;
 
 /// <summary>
 /// Before anything else starts: the storage is created or upgraded, the state saved before the restart is back (so "on
-/// since" survives it) and automations load what they scheduled. A broken storage stops the server here. After
-/// everything has stopped: the state is saved.
+/// since" survives it) and automations load what they scheduled. After everything has stopped: the state is saved.
+/// <para>
+/// The house does not depend on the storage: when it cannot be opened (full disk, rights, a broken file) the server
+/// works as <c>master</c> did - with the state in memory - and the owner is told.
+/// </para>
 /// </summary>
-internal sealed class HomeStartup(IHomeStorage storage, HomeModel home, HomeState state, AutomationEngine automations, ILogger<HomeStartup> logger)
-    : IHostedLifecycleService
+internal sealed class HomeStartup(
+    IHomeStorage storage,
+    HomeModel home,
+    HomeState state,
+    AutomationEngine automations,
+    HomeEventBus events,
+    ILogger<HomeStartup> logger) : IHostedLifecycleService
 {
     private readonly Lock stopSync = new();
     private Task? saveOnStop;
 
     public async Task StartingAsync(CancellationToken cancellationToken)
+    {
+        var result = await InvokeOperations.InvokeAsync(logger, "Open the database", () => RestoreAsync(cancellationToken));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!result.IsSuccess)
+            events.Publish(new ServerProblem($"Database unavailable, the state is kept in memory only: {result.Error}"));
+    }
+
+    private async Task RestoreAsync(CancellationToken cancellationToken)
     {
         await storage.InitializeAsync(cancellationToken);
 

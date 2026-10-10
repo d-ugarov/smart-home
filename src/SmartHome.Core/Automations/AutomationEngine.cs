@@ -222,8 +222,9 @@ public sealed class AutomationEngine(
         {
             await DeleteSavedAsync(action.Key);
 
+            // A late auto-off is still right: the switch is still on, and it is read before the command anyway.
             var late = timeProvider.GetUtcNow() - action.Due;
-            if (late > settings.Value.MaxLateness)
+            if (late > settings.Value.MaxLateness && action.AutomationId != Automation.AutoOffId)
             {
                 logger.LogWarning("Scheduled action {Key} dropped: late by {Late}", action.Key, late);
                 events.Publish(new DelayedActionDropped(OriginName(action.AutomationId), Describe(action), late));

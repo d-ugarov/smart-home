@@ -39,6 +39,26 @@ public class StorageTests
         });
     }
 
+    [Test]
+    public async Task DatabaseUnavailable_HouseStillWorks_OwnerNotified()
+    {
+        var notDatabase = TempDirectory.Create();
+        await using var factory = new HomeServerFactory(House.Example, new Dictionary<string, string?> {["Storage:DatabasePath"] = notDatabase});
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/megad/1?pt=0&click=1");
+        var notification = await factory.Network.Telegram.WaitForCallAsync(x => x.Method == "sendMessage" && x.Body["text"]!.GetValue<string>().StartsWith("⚠️"),
+                                                                           description: "a warning");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((int)response.StatusCode, Is.EqualTo(200), "the rules work as in master");
+            Assert.That(factory.Network.Commands, Is.Not.Empty);
+            Assert.That(notification.Body["text"]!.GetValue<string>(), Does.StartWith("⚠️ Database unavailable, the state is kept in memory only"));
+        });
+        TempDirectory.Delete(notDatabase);
+    }
+
     private static string[] Files(string directory) =>
         Directory.Exists(directory) ? Directory.GetFiles(directory, "*.db").Select(Path.GetFileName).OfType<string>().Order().ToArray() : [];
 

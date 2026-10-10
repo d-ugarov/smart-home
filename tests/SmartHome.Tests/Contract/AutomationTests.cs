@@ -252,6 +252,24 @@ public class AutomationTests
         TempDirectory.Delete(data);
     }
 
+    [Test]
+    public async Task AutomationsTurnedOnLater_LightOnForLong_TurnedOffAtStart()
+    {
+        // Release, step 1: automations off, the state is saved anyway; the hall light is left on.
+        var data = TempDirectory.Create();
+        await StopAsync();
+        Start(new FakeTimeProvider(start), data, new Dictionary<string, string?> {["Automation:Enabled"] = "false"});
+        await OutputAsync("1", 7, true);
+
+        // Step 3, a day later: automations on. The light has been forgotten for 22 h, far past MaxLateness.
+        await StopAsync();
+        Start(new FakeTimeProvider(start + TimeSpan.FromHours(22)), data, beforeStart: x => x.Network.Devices["1"].Set(7, true));
+
+        await CommandAsync(new MegaDCommand("1", 7, "0"));
+        Assert.That(await NotificationAsync("🤖"), Is.EqualTo("🤖 Auto-off → Hall light: off — OK"));
+        TempDirectory.Delete(data);
+    }
+
     [TestCase(11, true, TestName = "Late within MaxLateness - done")]
     [TestCase(13, false, TestName = "Late past MaxLateness - dropped")]
     public async Task Restart_ServerWasDown_LateAction(int hoursDown, bool done)
@@ -355,7 +373,8 @@ public class AutomationTests
         });
     }
 
-    private void Start(FakeTimeProvider clock, string? dataDirectory = null, Dictionary<string, string?>? settings = null)
+    private void Start(FakeTimeProvider clock, string? dataDirectory = null, Dictionary<string, string?>? settings = null,
+                       Action<HomeServerFactory>? beforeStart = null)
     {
         time = clock;
         var all = new Dictionary<string, string?> {["Automation:Enabled"] = "true"};
@@ -365,6 +384,7 @@ public class AutomationTests
             all[key] = value;
 
         factory = new HomeServerFactory(House.Example, all, services => services.AddSingleton<TimeProvider>(clock));
+        beforeStart?.Invoke(factory);
         client = factory.CreateClient();
     }
 

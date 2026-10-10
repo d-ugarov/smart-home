@@ -12,7 +12,7 @@ public sealed class AutomationSettings
 
     /// <summary>
     /// A scheduled action that is late by more than this - the server was down - is dropped: the house has lived without
-    /// it for long. Up to this it is done right after the start.
+    /// it for long. Up to this it is done right after the start. The auto-off is never dropped: the switch is still on.
     /// </summary>
     public TimeSpan MaxLateness { get; init; } = TimeSpan.FromHours(12);
 }

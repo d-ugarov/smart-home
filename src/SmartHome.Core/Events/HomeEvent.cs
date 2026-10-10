@@ -23,6 +23,9 @@ public sealed record EntityStateChanged(string EntityId, EntityState? Previous, 
 /// <param name="Origin"> Name of the automation, or the auto-off. </param>
 public sealed record AutomationCommandExecuted(string Origin, Entity Target, OnOff Command, CommandOutcome Outcome) : HomeEvent;
 
+/// <summary> Something the owner has to look at: the server works, but not fully. </summary>
+public sealed record ServerProblem(string Text) : HomeEvent;
+
 /// <summary> A scheduled action was not done: the server was down past <see cref="Automations.AutomationSettings.MaxLateness"/>. </summary>
 public sealed record DelayedActionDropped(string Origin, string Action, TimeSpan Late) : HomeEvent;
 
