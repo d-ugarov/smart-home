@@ -4,6 +4,7 @@
     <ProjectReference Include="..\SmartHome.Core\SmartHome.Core.csproj" />
     <ProjectReference Include="..\SmartHome.Integrations.MegaD\SmartHome.Integrations.MegaD.csproj" />
     <ProjectReference Include="..\SmartHome.Clients.Telegram\SmartHome.Clients.Telegram.csproj" />
+    <ProjectReference Include="..\SmartHome.Persistence\SmartHome.Persistence.csproj" />
   </ItemGroup>
 
   <ItemGroup>

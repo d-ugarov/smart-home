@@ -24,6 +24,11 @@ public abstract record MenuAction
 
     public sealed record RunValve(string PageId, string EntityId, ValveCommand Command) : MenuAction;
 
+    /// <summary> The page of automations: on/off switches and what is scheduled. </summary>
+    public sealed record Automations : MenuAction;
+
+    public sealed record ToggleAutomation(string AutomationId) : MenuAction;
+
     public string Serialize() => this switch
     {
         Dashboard => "home",
@@ -31,6 +36,8 @@ public abstract record MenuAction
         Toggle x => Join("t", x.PageId, x.EntityId),
         AskValve x => Join("va", x.PageId, x.EntityId, x.Command.ToString()),
         RunValve x => Join("vr", x.PageId, x.EntityId, x.Command.ToString()),
+        Automations => "a",
+        ToggleAutomation x => Join("a", x.AutomationId),
         _ => throw new NotSupportedException(GetType().Name),
     };
 
@@ -45,6 +52,8 @@ public abstract record MenuAction
             ["t", var page, var entity] => new Toggle(page, entity),
             ["va", var page, var entity, var command] when Enum.TryParse<ValveCommand>(command, out var c) => new AskValve(page, entity, c),
             ["vr", var page, var entity, var command] when Enum.TryParse<ValveCommand>(command, out var c) => new RunValve(page, entity, c),
+            ["a"] => new Automations(),
+            ["a", var automation] => new ToggleAutomation(automation),
             _ => new Dashboard(),
         };
     }

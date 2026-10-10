@@ -17,4 +17,10 @@ public static class MenuTexts
     public const string Yes = "✅ Yes";
     public const string No = "✖️ No";
     public const string PulseRunning = "⏳";
+    public const string Automations = "⚙️ Automations";
+    public const string AutomationsButton = "⚙️ Automations";
+    public const string NothingScheduled = "Nothing is scheduled.";
+    public const string Scheduled = "Scheduled:";
+    public const string AutomationOn = "🟢";
+    public const string AutomationOff = "🔘";
 }

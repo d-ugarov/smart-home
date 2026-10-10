@@ -22,7 +22,19 @@ public sealed class HomeServerFactory(House house, IReadOnlyDictionary<string, s
 
     public FakeNetwork Network { get; } = new(house.Devices.Select(x => (x.Id, x.Url, House.TestPassword, house.CmdAllSnapshot(x.Id))));
 
+    /// <summary>
+    /// The database of this server lives here and is deleted with it - unless the test sets <c>Storage:DatabasePath</c>
+    /// itself, e.g. to start the server again on the same database (<see cref="TempDirectory"/>).
+    /// </summary>
+    public string DataDirectory { get; } = TempDirectory.Create();
+
     public void Reset() => Network.Reset();
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        TempDirectory.Delete(DataDirectory);
+    }
 
     /// <summary> The bot is started in the background after the host; wait for its first API call. </summary>
     public async Task WaitForBotAsync()
@@ -80,6 +92,8 @@ public sealed class HomeServerFactory(House house, IReadOnlyDictionary<string, s
             result["Telegram:AllowedUsers:0"] = OwnerId.ToString();
         if (settings?.ContainsKey("Telegram:NotificationChatId") != true)
             result["Telegram:NotificationChatId"] = NotificationChatId.ToString();
+        if (settings?.ContainsKey("Storage:DatabasePath") != true)
+            result["Storage:DatabasePath"] = Path.Combine(DataDirectory, "home.db");
 
         foreach (var (id, _, _) in house.Devices)
             result[$"MegaD:Controllers:{id}:Password"] = House.TestPassword;

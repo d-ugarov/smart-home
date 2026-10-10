@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using SmartHome.Core.Automations;
 using SmartHome.Core.Configuration;
 using SmartHome.Core.Entities;
 using SmartHome.Core.Rules;
@@ -6,13 +7,16 @@ using System.Text;
 
 namespace SmartHome.Core.Home;
 
-/// <summary> The house built from the validated <see cref="HomeOptions"/>: entities, menu tree and input rules. </summary>
+/// <summary> The house built from the validated <see cref="HomeOptions"/>: entities, menu tree, input rules and automations. </summary>
 public sealed class HomeModel
 {
     private readonly Dictionary<string, Entity> entitiesById;
     private readonly Dictionary<string, MenuPageNode> pagesById = [];
     private readonly Dictionary<string, IReadOnlyList<InputRule>> rulesByButton;
     private readonly Dictionary<string, IReadOnlyList<Entity>> readByButton;
+    private readonly Dictionary<string, IReadOnlyList<Entity>> groupsByMember;
+    private readonly Dictionary<string, Automation> automationsById;
+    private readonly Dictionary<string, IReadOnlyList<AutomationRule>> rulesByTrigger;
 
     public HomeModel(IOptions<HomeOptions> options) : this(options.Value)
     {
@@ -20,10 +24,28 @@ public sealed class HomeModel
 
     public HomeModel(HomeOptions options)
     {
+        var plain = options.Entities
+                           .Where(x => x.Type != EntityType.Group)
+                           .Select(x => new Entity(x.Id, x.Name, x.Type!.Value, Icons(x)) {AutoOffAfter = x.AutoOffAfter})
+                           .ToDictionary(x => x.Id);
+
         Entities = options.Entities
-                          .Select(x => new Entity(x.Id, x.Name, x.Type!.Value, x.Icons is { } icons ? new StateIcons(icons.On, icons.Off) : null))
+                          .Select(x => x.Type == EntityType.Group
+                                           ? new Entity(x.Id, x.Name, EntityType.Group, Icons(x)) {Members = x.Members.Select(m => plain[m]).ToList()}
+                                           : plain[x.Id])
                           .ToList();
         entitiesById = Entities.ToDictionary(x => x.Id);
+
+        groupsByMember = Entities.Where(x => x.Type == EntityType.Group)
+                                 .SelectMany(g => g.Members.Select(m => (Member: m.Id, Group: g)))
+                                 .GroupBy(x => x.Member)
+                                 .ToDictionary(x => x.Key, x => (IReadOnlyList<Entity>)x.Select(y => y.Group).ToList());
+
+        Automations = options.Automations.Select(CreateAutomation).ToList();
+        automationsById = Automations.ToDictionary(x => x.Id);
+        rulesByTrigger = Automations.SelectMany(x => x.Rules)
+                                    .GroupBy(x => x.Trigger.Entity.Id)
+                                    .ToDictionary(x => x.Key, x => (IReadOnlyList<AutomationRule>)x.ToList());
 
         Dashboard = options.Menu.Select(x => CreatePage(x, parent: null)).ToList();
 
@@ -39,6 +61,7 @@ public sealed class HomeModel
                                        .ToList());
 
         Switches = Entities.Where(x => x.Type == EntityType.Switch).ToList();
+        AutoOffSwitches = Switches.Where(x => x.AutoOffAfter != null).ToList();
     }
 
     /// <summary> In the order of the config. </summary>
@@ -46,9 +69,22 @@ public sealed class HomeModel
 
     public IReadOnlyList<Entity> Switches { get; }
 
+    /// <summary> Switches with <see cref="Entity.AutoOffAfter"/>. </summary>
+    public IReadOnlyList<Entity> AutoOffSwitches { get; }
+
     public IReadOnlyList<MenuPageNode> Dashboard { get; }
 
+    /// <summary> In the order of the config. </summary>
+    public IReadOnlyList<Automation> Automations { get; }
+
     public Entity? FindEntity(string id) => entitiesById.GetValueOrDefault(id);
+
+    public IReadOnlyList<Entity> GroupsOf(string memberId) => groupsByMember.GetValueOrDefault(memberId) ?? [];
+
+    public Automation? FindAutomation(string id) => automationsById.GetValueOrDefault(id);
+
+    /// <summary> Automation rules whose trigger is this switch or group. </summary>
+    public IReadOnlyList<AutomationRule> RulesTriggeredBy(string entityId) => rulesByTrigger.GetValueOrDefault(entityId) ?? [];
 
     public MenuPageNode? FindPage(string id) => pagesById.GetValueOrDefault(id);
 
@@ -59,7 +95,8 @@ public sealed class HomeModel
     public string Describe()
     {
         var text = new StringBuilder();
-        text.AppendLine($"Home: {Entities.Count} entities, {rulesByButton.Values.Sum(x => x.Count)} rules on {rulesByButton.Count} buttons, {pagesById.Count} menu pages");
+        text.AppendLine($"Home: {Entities.Count} entities, {rulesByButton.Values.Sum(x => x.Count)} rules on {rulesByButton.Count} buttons, {pagesById.Count} menu pages, " +
+                        $"{Automations.Count} automations, auto-off of {AutoOffSwitches.Count} switches");
 
         foreach (var group in Entities.GroupBy(x => x.Type))
             text.AppendLine($"  {group.Key}: {string.Join(", ", group.Select(x => x.Id))}");
@@ -91,6 +128,38 @@ public sealed class HomeModel
                              options.Response!.Value,
                              options.IsFinal);
     }
+
+    private Automation CreateAutomation(AutomationOptions options)
+    {
+        var automation = new Automation(options.Id, options.Name);
+
+        automation.Rules = options.Rules.Select((rule, index) => new AutomationRule(
+                                                    automation,
+                                                    index,
+                                                    new AutomationTrigger(entitiesById[rule.Trigger!.Entity], rule.Trigger.To!.Value, rule.Trigger.For),
+                                                    rule.Conditions.Select(CreateCondition).ToList(),
+                                                    rule.Actions.Select(CreateAction).ToList()))
+                                      .ToList();
+
+        return automation;
+    }
+
+    private AutomationCondition CreateCondition(AutomationConditionOptions options) => options switch
+    {
+        {Entity: { } entity, Is: { } state} => new AutomationCondition.StateIs(entitiesById[entity], state),
+        {PreviousStateLongerThan: { } duration} => new AutomationCondition.PreviousStateLongerThan(duration),
+        {PreviousStateNotLongerThan: { } duration} => new AutomationCondition.PreviousStateNotLongerThan(duration),
+        _ => throw new InvalidOperationException("Invalid automation condition: the options are validated at startup"),
+    };
+
+    private AutomationAction CreateAction(AutomationActionOptions options) => options switch
+    {
+        {Schedule: { } key} => new AutomationAction.Schedule(key, options.Delay!.Value, entitiesById[options.Entity!], options.Command!.Value),
+        {Cancel: { } key} => new AutomationAction.Cancel(key),
+        _ => new AutomationAction.Command(entitiesById[options.Entity!], options.Command!.Value),
+    };
+
+    private static StateIcons? Icons(EntityOptions options) => options.Icons is { } icons ? new StateIcons(icons.On, icons.Off) : null;
 }
 
 public sealed class MenuPageNode(string id, string title, MenuPageNode? parent, OnOff? listSwitches)

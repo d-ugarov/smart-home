@@ -15,6 +15,17 @@ public class StartupValidationTests
     [TestCase("Home:Rules:6:Condition:Type", "AnyIs", "condition AnyIs needs State", TestName = "Condition without state")]
     [TestCase("Home:Menu:0:Pages:0:Items:0:Entity", "light.nowhere", "unknown entity 'light.nowhere'", TestName = "Unknown entity in the menu")]
     [TestCase("MegaD:Controllers:2:Ports:9", null, "Switch 'light.bedroom' is not bound to a MegaD port", TestName = "Entity without hardware")]
+    [TestCase("Storage:DatabasePath", null, "Storage:DatabasePath is required", TestName = "No database")]
+    [TestCase("Home:Entities:5:AutoOffAfter", "01:00:00", "AutoOffAfter is only for switches", TestName = "Auto-off of a sensor")]
+    [TestCase("Home:Entities:11:Members:1", "sensor.bathroom_leak", "member entity 'sensor.bathroom_leak' is a Sensor", TestName = "Group of a sensor")]
+    [TestCase("Home:Menu:0:Pages:0:Items:0:Entity", "group.bathroom_light", "group 'group.bathroom_light' has no state of its own", TestName = "Group in the menu")]
+    [TestCase("MegaD:Controllers:2:Ports:13", "group.bathroom_light", "group 'group.bathroom_light' has no hardware", TestName = "Group on a port")]
+    [TestCase("Home:Automations:0:Id", "auto_off", "'auto_off' is reserved", TestName = "Reserved automation id")]
+    [TestCase("Home:Automations:0:Rules:0:Trigger:Entity", "sensor.bathroom_leak", "only switches and groups are allowed", TestName = "Trigger on a sensor")]
+    [TestCase("Home:Automations:0:Rules:0:Conditions:1:PreviousStateLongerThan", "00:20:00", "only for a trigger without For",
+              TestName = "Previous state of a held trigger")]
+    [TestCase("Home:Automations:0:Rules:3:Actions:0:Cancel", "fan.nowhere.off", "no automation schedules this key", TestName = "Cancel of an unknown key")]
+    [TestCase("Home:Automations:0:Rules:1:Actions:0:Schedule", null, "Delay of 'fan.bathroom' needs a Schedule key", TestName = "Delay without a key")]
     public async Task BrokenConfig_ServerDoesNotStart(string key, string? value, string reason)
     {
         await using var factory = new HomeServerFactory(House.Example, new Dictionary<string, string?> {[key] = value});
@@ -28,6 +39,15 @@ public class StartupValidationTests
     public async Task ExampleConfig_Starts()
     {
         await using var factory = new HomeServerFactory(House.Example);
+
+        Assert.DoesNotThrow(() => factory.CreateClient());
+    }
+
+    [Test]
+    public async Task RealConfig_StartsWithAutomations()
+    {
+        House.Real.EnsureAvailable();
+        await using var factory = new HomeServerFactory(House.Real, new Dictionary<string, string?> {["Automation:Enabled"] = "true"});
 
         Assert.DoesNotThrow(() => factory.CreateClient());
     }

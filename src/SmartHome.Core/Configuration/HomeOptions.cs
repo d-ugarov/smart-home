@@ -17,6 +17,9 @@ public sealed class HomeOptions
 
     public List<InputRuleOptions> Rules { get; init; } = [];
 
+    /// <summary> Run by themselves, without a press; work only when <see cref="Automations.AutomationSettings.Enabled"/>. </summary>
+    public List<AutomationOptions> Automations { get; init; } = [];
+
     /// <summary> How often the state of all entities is read from the devices; zero disables polling. </summary>
     public TimeSpan StatePollInterval { get; init; } = TimeSpan.FromSeconds(10);
 
@@ -33,6 +36,12 @@ public sealed class EntityOptions
     public string Name { get; init; } = "";
     public EntityType? Type { get; init; }
     public StateIconsOptions? Icons { get; init; }
+
+    /// <summary> Switches only: turned off by the server when left on longer than this ("forgotten" light). </summary>
+    public TimeSpan? AutoOffAfter { get; init; }
+
+    /// <summary> Groups only: the switches of the group. </summary>
+    public List<string> Members { get; init; } = [];
 }
 
 public sealed class StateIconsOptions

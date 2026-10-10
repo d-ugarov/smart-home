@@ -97,11 +97,14 @@ internal sealed class MegaDOptionsValidator(IOptions<HomeOptions> homeOptions) :
                     case EntityType.Valve:
                         errors.Add($"{where}: valve '{entityId}' is bound in Valves, not in Ports");
                         break;
+                    case EntityType.Group:
+                        errors.Add($"{where}: group '{entityId}' has no hardware, its switches are bound");
+                        break;
                 }
             }
         }
 
-        foreach (var (id, type) in entities.Where(x => !bound.ContainsKey(x.Key)))
+        foreach (var (id, type) in entities.Where(x => x.Value != EntityType.Group && !bound.ContainsKey(x.Key)))
             errors.Add($"{type} '{id}' is not bound to a MegaD port");
 
         return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);

@@ -18,6 +18,7 @@ public sealed partial class HomeOptionsValidator : IValidateOptions<HomeOptions>
 
         ValidateMenu(options.Menu, entities, errors);
         ValidateRules(options.Rules, entities, errors);
+        AutomationOptionsValidator.Validate(options.Automations, entities, errors);
 
         if (options.StatePollInterval < TimeSpan.Zero)
             errors.Add($"{HomeOptions.Section}:{nameof(HomeOptions.StatePollInterval)} must not be negative");
@@ -47,6 +48,26 @@ public sealed partial class HomeOptionsValidator : IValidateOptions<HomeOptions>
 
             if (entity.Icons != null && (string.IsNullOrEmpty(entity.Icons.On) || string.IsNullOrEmpty(entity.Icons.Off)))
                 errors.Add($"Entity '{entity.Id}': Icons need both On and Off");
+
+            if (entity.AutoOffAfter != null && entity.Type != EntityType.Switch)
+                errors.Add($"Entity '{entity.Id}': AutoOffAfter is only for switches");
+            else if (entity.AutoOffAfter <= TimeSpan.Zero)
+                errors.Add($"Entity '{entity.Id}': AutoOffAfter must be positive");
+
+            if (entity.Type != EntityType.Group && entity.Members.Count > 0)
+                errors.Add($"Entity '{entity.Id}': Members are only for groups");
+        }
+
+        foreach (var group in options.Where(x => x.Type == EntityType.Group))
+        {
+            if (group.Members.Count == 0)
+                errors.Add($"Group '{group.Id}': Members are required");
+
+            if (group.Members.Distinct().Count() != group.Members.Count)
+                errors.Add($"Group '{group.Id}': a member is listed twice");
+
+            foreach (var member in group.Members)
+                ValidateSwitch(member, "member", $"Group '{group.Id}'", result, errors);
         }
 
         return result;
@@ -73,6 +94,9 @@ public sealed partial class HomeOptionsValidator : IValidateOptions<HomeOptions>
                     errors.Add($"Menu page '{page.Id}': unknown entity '{item.Entity}'");
                     continue;
                 }
+
+                if (entity.Type == EntityType.Group)
+                    errors.Add($"Menu page '{page.Id}': group '{item.Entity}' has no state of its own to show, list its switches");
 
                 if (entity.Type == EntityType.Valve && item.Valve == null)
                     errors.Add($"Menu page '{page.Id}': valve '{item.Entity}' needs Valve (Open or Close)");
@@ -157,7 +181,7 @@ public sealed partial class HomeOptionsValidator : IValidateOptions<HomeOptions>
         }
     }
 
-    private static void ValidateSwitch(string id, string role, string prefix, Dictionary<string, EntityOptions> entities, List<string> errors)
+    internal static void ValidateSwitch(string id, string role, string prefix, Dictionary<string, EntityOptions> entities, List<string> errors)
     {
         if (!entities.TryGetValue(id, out var entity))
             errors.Add($"{prefix}: unknown {role} entity '{id}'");

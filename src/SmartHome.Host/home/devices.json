@@ -35,7 +35,8 @@
           "8": "light.living_room_spots",
           "9": "light.bedroom",
           "10": "light.bedroom_night",
-          "11": "heater.floor"
+          "11": "heater.floor",
+          "12": "light.bathroom_mirror"
         }
       }
     }

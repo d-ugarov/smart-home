@@ -7,7 +7,8 @@ namespace SmartHome.Tests.Contract;
 
 /// <summary>
 /// nlog.config from the repo: loads on the NLog version the server uses, writes plain text files only,
-/// and routes request logs and framework noise as intended.
+/// and routes request logs and framework noise as intended. A log factory of its own: a test server shutting down resets
+/// the global one.
 /// </summary>
 [NonParallelizable]
 public class NLogConfigTests
@@ -15,6 +16,7 @@ public class NLogConfigTests
     private const string RequestLogger = "SmartHome.Host.RequestLoggingMiddleware";
 
     private string logDirectory = null!;
+    private LogFactory logs = null!;
 
     [SetUp]
     public void SetUp()
@@ -26,8 +28,7 @@ public class NLogConfigTests
     [TearDown]
     public void TearDown()
     {
-        LogManager.Configuration = null;
-        LogManager.ThrowConfigExceptions = false;
+        logs.Dispose();
         if (Directory.Exists(logDirectory))
             Directory.Delete(logDirectory, recursive: true);
     }
@@ -35,7 +36,7 @@ public class NLogConfigTests
     [Test]
     public void OnlyFileTargets()
     {
-        var targets = LogManager.Configuration!.AllTargets.Where(x => x is not AsyncTargetWrapper).ToList();
+        var targets = logs.Configuration!.AllTargets.Where(x => x is not AsyncTargetWrapper).ToList();
 
         Assert.That(targets, Has.Count.EqualTo(2).And.All.InstanceOf<FileTarget>());
     }
@@ -43,13 +44,13 @@ public class NLogConfigTests
     [Test]
     public void Routing()
     {
-        LogManager.GetLogger("SmartHome.Core.Rules.InputRuleEngine").Trace("trigger trace");
-        LogManager.GetLogger("SmartHome.Core.Rules.InputRuleEngine").Error(new InvalidOperationException("boom"), "trigger failed");
-        LogManager.GetLogger(RequestLogger).Debug("GET /megad/2?pt=21 | Response: 200");
-        LogManager.GetLogger("Microsoft.AspNetCore.Routing.EndpointMiddleware").Info("framework info");
-        LogManager.GetLogger("Microsoft.AspNetCore.Server.Kestrel").Warn("framework warning");
-        LogManager.GetLogger("Microsoft.Hosting.Lifetime").Info("Application started");
-        LogManager.Flush(TimeSpan.FromSeconds(5));
+        logs.GetLogger("SmartHome.Core.Rules.InputRuleEngine").Trace("trigger trace");
+        logs.GetLogger("SmartHome.Core.Rules.InputRuleEngine").Error(new InvalidOperationException("boom"), "trigger failed");
+        logs.GetLogger(RequestLogger).Debug("GET /megad/2?pt=21 | Response: 200");
+        logs.GetLogger("Microsoft.AspNetCore.Routing.EndpointMiddleware").Info("framework info");
+        logs.GetLogger("Microsoft.AspNetCore.Server.Kestrel").Warn("framework warning");
+        logs.GetLogger("Microsoft.Hosting.Lifetime").Info("Application started");
+        logs.Flush(TimeSpan.FromSeconds(5));
 
         var app = Read("app-*.log");
         var requests = Read("requests-*.log");
@@ -77,8 +78,8 @@ public class NLogConfigTests
         ((XmlElement)xml.SelectSingleNode("//n:variable[@name='logDirectory']", ns)!).SetAttribute("value", logDirectory);
         xml.DocumentElement!.SetAttribute("throwConfigExceptions", "true");
 
-        LogManager.ThrowConfigExceptions = true;
-        LogManager.Setup().LoadConfigurationFromXml(xml.OuterXml);
+        logs = new LogFactory {ThrowConfigExceptions = true};
+        logs.Setup().LoadConfigurationFromXml(xml.OuterXml);
     }
 
     private string Read(string pattern)

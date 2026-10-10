@@ -8,6 +8,12 @@ public sealed record Entity(string Id, string Name, EntityType Type, StateIcons?
 {
     public string Class => Id[..Id.IndexOf('.')];
 
+    /// <summary> A switch left on longer than this is turned off by the server; null - never. </summary>
+    public TimeSpan? AutoOffAfter { get; init; }
+
+    /// <summary> Switches of a <see cref="EntityType.Group"/>. </summary>
+    public IReadOnlyList<Entity> Members { get; init; } = [];
+
     public override string ToString() => $"{Name} ({Id})";
 }
 
@@ -24,6 +30,12 @@ public enum EntityType
 
     /// <summary> A pair of water valves driven by a scenario of the controller, see <see cref="ValveCommand"/>. </summary>
     Valve,
+
+    /// <summary>
+    /// Several switches seen as one, e.g. the bright and the warm light of a bathroom: on when any of them is on. Has no
+    /// hardware; used by automations.
+    /// </summary>
+    Group,
 }
 
 public enum OnOff

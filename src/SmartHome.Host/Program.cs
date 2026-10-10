@@ -5,6 +5,7 @@ using SmartHome.Core;
 using SmartHome.Core.Home;
 using SmartHome.Host;
 using SmartHome.Integrations.MegaD;
+using SmartHome.Persistence;
 
 var logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
@@ -21,6 +22,7 @@ try
 
     builder.Services
            .AddSmartHomeCore()
+           .AddPersistence()
            .AddMegaD()
            .AddTelegramBot();
 

@@ -281,3 +281,9 @@ __pycache__/
 
 # Cake - Uncomment if you are using it
 # tools/
+
+# SQLite databases of local runs
+*.db
+*.db-shm
+*.db-wal
+*.db.tmp

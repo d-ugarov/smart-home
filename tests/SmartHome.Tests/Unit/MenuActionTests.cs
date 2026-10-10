@@ -12,6 +12,8 @@ public class MenuActionTests
         new MenuAction.Toggle("hall", "light.hall"),
         new MenuAction.AskValve("water", "valve.bathroom", ValveCommand.Close),
         new MenuAction.RunValve("water", "valve.bathroom", ValveCommand.Open),
+        new MenuAction.Automations(),
+        new MenuAction.ToggleAutomation("bathroom_fan"),
     ];
 
     [TestCaseSource(nameof(actions))]
@@ -26,6 +28,7 @@ public class MenuActionTests
     [TestCase("")]
     [TestCase("t:hall")]
     [TestCase("va:water:valve.bathroom:Explode")]
+    [TestCase("a:bathroom_fan:extra")]
     public void Unknown_IsDashboard(string? data)
     {
         Assert.That(MenuAction.Parse(data), Is.EqualTo(new MenuAction.Dashboard()));

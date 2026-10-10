@@ -1,5 +1,5 @@
 // Converted from the config of master by SmartHome.ConfigConverter; edited by hand from now on.
-// Input rules: a press of a button → conditions on the switches → commands.
+// Input rules: a press of a button → conditions on the switches → commands. Automations below.
 {
   "Home": {
     "Rules": [
@@ -117,6 +117,35 @@
         "Presses": [ "LongPress" ],
         "Actions": [ { "Entity": "heater.floor", "Command": "Toggle" } ],
         "Response": "Handled"
+      }
+    ],
+    // Automations: a trigger (a switch or a group came to a state, optionally holds it) → conditions → actions.
+    // A switch changed by a person loses what the automations scheduled for it.
+    "Automations": [
+      {
+        "Id": "bathroom_fan",
+        "Name": "Bathroom fan follows the light",
+        "Rules": [
+          {
+            "Trigger": { "Entity": "group.bathroom_light", "To": "On", "For": "00:05:00" },
+            "Conditions": [ { "Entity": "fan.bathroom", "Is": "Off" } ],
+            "Actions": [ { "Entity": "fan.bathroom", "Command": "On" } ]
+          },
+          {
+            "Trigger": { "Entity": "group.bathroom_light", "To": "Off" },
+            "Conditions": [ { "Entity": "fan.bathroom", "Is": "On" }, { "PreviousStateNotLongerThan": "00:20:00" } ],
+            "Actions": [ { "Schedule": "fan.bathroom.off", "Delay": "00:30:00", "Entity": "fan.bathroom", "Command": "Off" } ]
+          },
+          {
+            "Trigger": { "Entity": "group.bathroom_light", "To": "Off" },
+            "Conditions": [ { "Entity": "fan.bathroom", "Is": "On" }, { "PreviousStateLongerThan": "00:20:00" } ],
+            "Actions": [ { "Schedule": "fan.bathroom.off", "Delay": "01:00:00", "Entity": "fan.bathroom", "Command": "Off" } ]
+          },
+          {
+            "Trigger": { "Entity": "group.bathroom_light", "To": "On" },
+            "Actions": [ { "Cancel": "fan.bathroom.off" } ]
+          }
+        ]
       }
     ]
   }

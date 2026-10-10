@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using SmartHome.Core.Common;
 using SmartHome.Core.Entities;
 using SmartHome.Core.Events;
 using System.Threading.Channels;
@@ -13,8 +14,8 @@ public interface INotificationChannel
 }
 
 /// <summary>
-/// The owner learns about every request of the controllers and every command of the rules, as in <c>master</c>.
-/// Categories and turning them off come later.
+/// The owner learns about every request of the controllers and every command of the rules, as in <c>master</c>, and
+/// of the automations. Categories and turning them off come later.
 /// </summary>
 internal sealed class NotificationService(NotificationQueue queue) : IHomeEventHandler
 {
@@ -32,6 +33,8 @@ internal sealed class NotificationService(NotificationQueue queue) : IHomeEventH
         DeviceRestarted x => $"🔄 {x.Device} restarted",
         RuleCommandExecuted x => $"→ {x.Target.Name}: {Command(x.Command)} — {Outcome(x.Outcome)}",
         ValveCommandExecuted x => $"💧 {x.Valve.Name}: {(x.Command == ValveCommand.Open ? "open" : "close")} — {Outcome(x.Outcome)}",
+        AutomationCommandExecuted x => $"🤖 {x.Origin} → {x.Target.Name}: {Texts.Of(x.Command)} — {Outcome(x.Outcome)}",
+        DelayedActionDropped x => $"⚠️ {x.Origin}: {x.Action} not done, {Texts.Duration(x.Late)} late (the server was down)",
         _ => null,
     };
 
@@ -47,7 +50,7 @@ internal sealed class NotificationService(NotificationQueue queue) : IHomeEventH
     {
         CommandOutcome.Sent {Result.IsSuccess: true} => "OK",
         CommandOutcome.Sent x => $"⚠️ failed: {x.Result.Error}",
-        CommandOutcome.Skipped x => $"skipped, already {(x.State == OnOff.On ? "on" : "off")}",
+        CommandOutcome.Skipped x => $"skipped, already {Texts.Of(x.State)}",
         CommandOutcome.Busy => "skipped, the previous pulse is still running",
         _ => outcome.ToString(),
     };

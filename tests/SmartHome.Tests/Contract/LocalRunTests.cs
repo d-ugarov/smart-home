@@ -55,6 +55,36 @@ public class LocalRunTests
     }
 
     [Test]
+    public async Task Simulator_Automations_InTheDebugMenu()
+    {
+        await using var factory = new HomeServerFactory(House.Example, new Dictionary<string, string?>
+                                                                       {
+                                                                           ["Telegram:UseFakeBot"] = "true",
+                                                                           ["MegaD:UseSimulator"] = "true",
+                                                                           ["Automation:Enabled"] = "true",
+                                                                       });
+        using var client = factory.CreateClient();
+
+        var dashboard = await client.GetStringAsync("/debug/menu");
+        await client.GetAsync("/megad/1?pt=7&mdid=1&v=1");
+
+        // Automations follow the state in the background.
+        var automations = "";
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!automations.Contains("Hall light", StringComparison.Ordinal) && !timeout.IsCancellationRequested)
+            automations = await client.GetStringAsync("/debug/menu?action=a", CancellationToken.None);
+        var turnedOff = await client.GetStringAsync("/debug/menu?action=a%3Aauto_off");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(dashboard, Does.Contain("[⚙️ Automations]  /debug/menu?action=a"));
+            Assert.That(automations, Does.Contain("• 8 h — Hall light: off (Auto-off)").And.Contain("[🟢 Bathroom fan follows the light]"));
+            Assert.That(turnedOff, Does.Contain("Nothing is scheduled.").And.Contain("[🔘 Auto-off]"));
+            Assert.That(factory.Network.UnexpectedRequests, Is.Empty);
+        });
+    }
+
+    [Test]
     public async Task DebugMenu_OnlyWithFakeBot()
     {
         await using var factory = new HomeServerFactory(House.Example);

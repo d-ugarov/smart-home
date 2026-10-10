@@ -1,5 +1,6 @@
 using SmartHome.Core.Common;
 using SmartHome.Core.Entities;
+using SmartHome.Core.State;
 
 namespace SmartHome.Core.Events;
 
@@ -15,6 +16,15 @@ public sealed record DeviceRestarted(string DeviceId, string Device) : HomeEvent
 public sealed record RuleCommandExecuted(Entity Button, Entity Target, SwitchCommand Command, CommandOutcome Outcome) : HomeEvent;
 
 public sealed record ValveCommandExecuted(Entity Valve, ValveCommand Command, CommandOutcome Outcome) : HomeEvent;
+
+/// <param name="Previous"> Null - the first known state since the start of the server or a restart of the device. </param>
+public sealed record EntityStateChanged(string EntityId, EntityState? Previous, EntityState Current) : HomeEvent;
+
+/// <param name="Origin"> Name of the automation, or the auto-off. </param>
+public sealed record AutomationCommandExecuted(string Origin, Entity Target, OnOff Command, CommandOutcome Outcome) : HomeEvent;
+
+/// <summary> A scheduled action was not done: the server was down past <see cref="Automations.AutomationSettings.MaxLateness"/>. </summary>
+public sealed record DelayedActionDropped(string Origin, string Action, TimeSpan Late) : HomeEvent;
 
 public abstract record CommandOutcome
 {

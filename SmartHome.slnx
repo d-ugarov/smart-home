@@ -4,6 +4,7 @@
     <Project Path="src/SmartHome.Core/SmartHome.Core.csproj" />
     <Project Path="src/SmartHome.Host/SmartHome.Host.csproj" />
     <Project Path="src/SmartHome.Integrations.MegaD/SmartHome.Integrations.MegaD.csproj" />
+    <Project Path="src/SmartHome.Persistence/SmartHome.Persistence.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SmartHome.Tests/SmartHome.Tests.csproj" />
