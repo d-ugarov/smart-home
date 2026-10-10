@@ -28,7 +28,9 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<ValveService>();
         services.AddSingleton<MenuService>();
 
+        services.AddSingleton<NotificationQueue>();
         services.AddSingleton<IHomeEventHandler, NotificationService>();
+        services.AddHostedService<NotificationSender>();
         services.AddHostedService<HomeEventDispatcher>();
         services.AddHostedService<StatePollingService>();
 

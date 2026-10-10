@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration.Json;
+
 namespace SmartHome.Host;
 
 /// <summary>
@@ -11,12 +13,28 @@ public static class HomeFiles
 
     public static readonly string[] Names = ["devices.json", "entities.json", "automations.json"];
 
+    /// <summary>
+    /// The files go below every other source: appsettings, environment variables and the command line override the
+    /// house description, never the other way round.
+    /// </summary>
     public static IConfigurationBuilder AddHomeFiles(this ConfigurationManager configuration)
     {
         var directory = configuration[DirectoryKey] ?? DefaultDirectory;
+        var fileProvider = configuration.GetFileProvider();
 
-        foreach (var name in Names)
-            configuration.AddJsonFile(Path.Combine(directory, name), optional: false, reloadOnChange: false);
+        for (var i = 0; i < Names.Length; i++)
+        {
+            var source = new JsonConfigurationSource
+                         {
+                             Path = Path.Combine(directory, Names[i]),
+                             Optional = false,
+                             ReloadOnChange = false,
+                             FileProvider = Path.IsPathRooted(directory) ? null : fileProvider,
+                         };
+            source.ResolveFileProvider();
+
+            configuration.Sources.Insert(i, source);
+        }
 
         return configuration;
     }

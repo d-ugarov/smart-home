@@ -43,11 +43,14 @@ public sealed class BotSession(FakeTelegramApi telegram, long userId = HomeServe
 {
     public async Task<BotPage> SendTextAsync(string text = "/dashboard")
     {
-        var sent = telegram.Calls.Count(x => x.Method == "sendMessage");
+        // Notifications go to their own chat: only the answers to this user count.
+        var sent = telegram.Calls.Count(IsAnswer);
         telegram.SendText(userId, text);
-        var call = await telegram.WaitForCallAsync("sendMessage", skip: sent);
+        var call = await telegram.WaitForCallAsync(IsAnswer, skip: sent);
         return BotPage.From(call.Body, messageId: 1);
     }
+
+    private bool IsAnswer(TelegramCall call) => call.Method == "sendMessage" && call.Body["chat_id"]!.GetValue<long>() == userId;
 
     public async Task<BotPage> PressAsync(BotPage page, string buttonText)
     {

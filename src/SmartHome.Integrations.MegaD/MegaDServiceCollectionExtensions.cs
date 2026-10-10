@@ -15,7 +15,9 @@ public static class MegaDServiceCollectionExtensions
         services.AddSingleton<MegaDBindings>();
         services.AddSingleton<MegaDClient>();
         services.AddSingleton<MegaDSimulator>();
+        // The password is a part of the URL: the default request logging would write it out on every poll.
         services.AddHttpClient(MegaDClient.HttpClientName)
+                .RemoveAllLoggers()
                 .ConfigurePrimaryHttpMessageHandler(x => x.GetRequiredService<IOptions<MegaDOptions>>().Value.UseSimulator
                                                         ? x.GetRequiredService<MegaDSimulator>()
                                                         : new SocketsHttpHandler());

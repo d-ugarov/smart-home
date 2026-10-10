@@ -12,7 +12,7 @@ public sealed class TelegramOptions
     /// <summary> Telegram user ids allowed to use the bot; everybody else is ignored. Must not be empty. </summary>
     public HashSet<long> AllowedUsers { get; init; } = [];
 
-    /// <summary> Where notifications go (the owner's chat); none - notifications are not sent. </summary>
+    /// <summary> Where notifications go (the owner's chat). Required unless <see cref="UseFakeBot"/>. </summary>
     public long? NotificationChatId { get; init; }
 
     public TelegramProxyOptions? Proxy { get; init; }
@@ -39,6 +39,10 @@ internal sealed class TelegramOptionsValidator : IValidateOptions<TelegramOption
 
         if (!options.UseFakeBot && string.IsNullOrWhiteSpace(options.BotToken))
             errors.Add("Telegram:BotToken is required (or Telegram:UseFakeBot for local runs)");
+
+        // master always notified the owner; a forgotten setting must not switch that off silently.
+        if (!options.UseFakeBot && options.NotificationChatId == null)
+            errors.Add("Telegram:NotificationChatId is required: the owner gets the events of the house");
 
         if (options.Proxy != null && !Uri.TryCreate(options.Proxy.Address, UriKind.Absolute, out _))
             errors.Add("Telegram:Proxy:Address must be a URL");

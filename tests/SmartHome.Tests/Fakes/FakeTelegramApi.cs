@@ -73,13 +73,17 @@ public sealed class FakeTelegramApi
                 });
     }
 
-    public async Task<TelegramCall> WaitForCallAsync(string method, int skip = 0, TimeSpan? timeout = null)
+    public Task<TelegramCall> WaitForCallAsync(string method, int skip = 0, TimeSpan? timeout = null) =>
+        WaitForCallAsync(x => x.Method == method, skip, timeout, method);
+
+    public async Task<TelegramCall> WaitForCallAsync(Func<TelegramCall, bool> filter, int skip = 0, TimeSpan? timeout = null, string? description = null)
     {
         var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(10));
+        var method = description ?? "matching";
 
         while (DateTime.UtcNow < deadline)
         {
-            var found = Calls.Where(x => x.Method == method).Skip(skip).FirstOrDefault();
+            var found = Calls.Where(filter).Skip(skip).FirstOrDefault();
             if (found != null)
                 return found;
 

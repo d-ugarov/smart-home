@@ -15,6 +15,7 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     builder.Configuration.AddHomeFiles();
+    builder.UseDefaultListenAddress();
     builder.Host.UseNLog();
     builder.Host.UseSystemd();
 

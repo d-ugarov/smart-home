@@ -13,10 +13,12 @@ namespace SmartHome.Tests.Infrastructure;
 /// The server as a black box: house files of the <see cref="House"/>, fake controllers and fake Telegram behind
 /// <see cref="FakeNetwork"/>. The real HTTP clients are used - only the network is fake.
 /// </summary>
-public sealed class HomeServerFactory(House house, IReadOnlyDictionary<string, string?>? settings = null) : WebApplicationFactory<Program>
+public sealed class HomeServerFactory(House house, IReadOnlyDictionary<string, string?>? settings = null, Action<IServiceCollection>? testServices = null)
+    : WebApplicationFactory<Program>
 {
     public const long OwnerId = 111;
     public const long StrangerId = 222;
+    public const long NotificationChatId = 555;
 
     public FakeNetwork Network { get; } = new(house.Devices.Select(x => (x.Id, x.Url, House.TestPassword, house.CmdAllSnapshot(x.Id))));
 
@@ -47,6 +49,7 @@ public sealed class HomeServerFactory(House house, IReadOnlyDictionary<string, s
             // The simulator of local runs stays in place: it is what such a test checks.
             var simulated = settings?.GetValueOrDefault("MegaD:UseSimulator") == "true" ? MegaDClientName : null;
             services.AddSingleton<IPostConfigureOptions<HttpClientFactoryOptions>>(new FakeNetworkInstaller(Network, simulated));
+            testServices?.Invoke(services);
         });
     }
 
@@ -72,9 +75,11 @@ public sealed class HomeServerFactory(House house, IReadOnlyDictionary<string, s
                          ["Home:StatePollInterval"] = "00:00:00",
                      };
 
-        // A test may leave the list empty by passing "Telegram:AllowedUsers".
+        // A test may leave these out by passing the key with null.
         if (settings?.ContainsKey("Telegram:AllowedUsers") != true)
             result["Telegram:AllowedUsers:0"] = OwnerId.ToString();
+        if (settings?.ContainsKey("Telegram:NotificationChatId") != true)
+            result["Telegram:NotificationChatId"] = NotificationChatId.ToString();
 
         foreach (var (id, _, _) in house.Devices)
             result[$"MegaD:Controllers:{id}:Password"] = House.TestPassword;
