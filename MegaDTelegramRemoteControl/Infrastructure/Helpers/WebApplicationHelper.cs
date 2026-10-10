@@ -27,7 +27,12 @@ public static class WebApplicationHelper
 
     public static T? GetConfigByType<T>(this WebApplicationBuilder webAppBuilder) where T : class, new()
     {
-        return webAppBuilder.GetSectionByType<T>().Get<T>();
+        return webAppBuilder.Configuration.GetConfigByType<T>();
+    }
+
+    public static T? GetConfigByType<T>(this IConfiguration configuration) where T : class, new()
+    {
+        return configuration.GetSection(typeof(T).Name).Get<T>();
     }
 
     public static IConfigurationSection GetSectionByType<T>(this WebApplicationBuilder webAppBuilder) where T : class, new()
@@ -43,7 +48,7 @@ public static class WebApplicationHelper
 
             switch (kestrel)
             {
-                case {Url: not null or "", Port: > 0}:
+                case {Url: not (null or ""), Port: > 0}:
                     x.Listen(IPAddress.Parse(kestrel.Url), kestrel.Port);
                     break;
                 case {Port: > 0}:

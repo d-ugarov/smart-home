@@ -11,13 +11,13 @@ using MegaDTelegramRemoteControl.Services.PrivateOffices.PES;
 using MegaDTelegramRemoteControl.Services.StubServices;
 using MegaDTelegramRemoteControl.Services.TelegramServices;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NLog;
 using NLog.Web;
 using System;
-using System.IO;
 using System.Net;
 using System.Net.Http;
 
@@ -30,7 +30,7 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     builder.Host.UseNLog();
-    builder.Host.UseContentRoot(Directory.GetCurrentDirectory());
+    builder.Host.UseSystemd();
 
     builder.ConfigureKestrel();
     AddSystemServices(builder);
@@ -38,6 +38,8 @@ try
     ConfigureOptions(builder);
 
     var app = builder.Build();
+
+    logger.Info(app.Services.GetRequiredService<HomeConfig>().ToString());
 
     if (app.Environment.IsDevelopment())
         app.UseDeveloperExceptionPage();
@@ -53,8 +55,7 @@ try
 }
 catch (Exception e)
 {
-    logger.Fatal($"Application crashed: {e.Message}");
-    logger.Error($"[Main:{Constants.InstanceId}] Application crashed: {e.Message} {Environment.NewLine}{e.StackTrace}");
+    logger.Fatal(e, $"[Main:{Constants.InstanceId}] Application crashed");
     throw;
 }
 finally
@@ -85,40 +86,43 @@ void AddSystemServices(WebApplicationBuilder builder)
 
 void ConfigureServices(WebApplicationBuilder builder)
 {
-    var platformConfig = builder.GetConfigByType<PlatformConfig>() ?? new();
-    var telegramProxyConfig = builder.GetConfigByType<TelegramProxyConfig>() ?? new();
+    // Configuration is read when services are resolved, not here: the host may still add configuration sources until Build().
+    builder.Services.AddHttpClient<TelegramBotService>()
+           .ConfigurePrimaryHttpMessageHandler(x =>
+           {
+               var telegramProxyConfig = x.GetRequiredService<IOptions<TelegramProxyConfig>>().Value;
 
-    builder.Services.AddHttpClient<IBotService, TelegramBotService>()
-           .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-                                                     {
-                                                         Proxy = !string.IsNullOrEmpty(telegramProxyConfig.Host) &&
-                                                                 !string.IsNullOrEmpty(telegramProxyConfig.Username) &&
-                                                                 !string.IsNullOrEmpty(telegramProxyConfig.Password)
-                                                             ? new WebProxy
-                                                               {
-                                                                   Address = new Uri(telegramProxyConfig.Host),
-                                                                   Credentials = new NetworkCredential(telegramProxyConfig.Username, telegramProxyConfig.Password),
-                                                               }
-                                                             : null,
-                                                     });
+               return new HttpClientHandler
+                      {
+                          Proxy = !string.IsNullOrEmpty(telegramProxyConfig.Host) &&
+                                  !string.IsNullOrEmpty(telegramProxyConfig.Username) &&
+                                  !string.IsNullOrEmpty(telegramProxyConfig.Password)
+                              ? new WebProxy
+                                {
+                                    Address = new Uri(telegramProxyConfig.Host),
+                                    Credentials = new NetworkCredential(telegramProxyConfig.Username, telegramProxyConfig.Password),
+                                }
+                              : null,
+                      };
+           });
+    builder.Services.AddTransient<StubBotService>();
+    builder.Services.AddTransient<IBotService>(x => x.GetRequiredService<IOptions<PlatformConfig>>().Value.UseFakeTelegramBot
+                                                   ? x.GetRequiredService<StubBotService>()
+                                                   : x.GetRequiredService<TelegramBotService>());
     builder.Services.AddTransient<IBotHandler, TelegramBotHandler>();
     builder.Services.AddTransient<IMegaDEventsHandler, MegaDEventsHandler>();
     builder.Services.AddTransient<IHomeTriggerProcessor, HomeTriggerProcessor>();
     builder.Services.AddSingleton<IWarmupCacheService, InitService>();
     builder.Services.AddTransient<IDeviceCommandParser, MegaDCommandParser>();
 
-    var homeConfig = CreateHomeConfig(builder);
-    logger.Info(homeConfig.ToString());
+    builder.Services.AddSingleton(x => CreateHomeConfig(x.GetRequiredService<IConfiguration>()));
+    builder.Services.AddSingleton<IHomeService, HomeService>();
 
-    builder.Services.AddSingleton<IHomeService, HomeService>(x =>
-        new HomeService(
-            x.GetRequiredService<ILogger<HomeService>>(),
-            homeConfig));
-
-    if (!platformConfig.UseFakeDeviceConnector)
-        builder.Services.AddHttpClient<IDeviceConnector, MegaDConnector>();
-    else
-        builder.Services.AddTransient<IDeviceConnector, StubDeviceConnector>();
+    builder.Services.AddHttpClient<MegaDConnector>();
+    builder.Services.AddTransient<StubDeviceConnector>();
+    builder.Services.AddTransient<IDeviceConnector>(x => x.GetRequiredService<IOptions<PlatformConfig>>().Value.UseFakeDeviceConnector
+                                                        ? x.GetRequiredService<StubDeviceConnector>()
+                                                        : x.GetRequiredService<MegaDConnector>());
 
     builder.Services.AddHttpClient<IAntiCaptchaService, AntiCaptchaService>();
 
@@ -132,17 +136,18 @@ void ConfigureOptions(WebApplicationBuilder builder)
 {
     builder.ConfigureByType<PlatformConfig>();
     builder.ConfigureByType<TelegramConfig>();
+    builder.ConfigureByType<TelegramProxyConfig>();
     builder.ConfigureByType<JobSchedulerConfig>();
     builder.ConfigureByType<PesConfig>();
     builder.ConfigureByType<AntiCaptchaConfig>();
 }
 
-HomeConfig CreateHomeConfig(WebApplicationBuilder builder)
+HomeConfig CreateHomeConfig(IConfiguration configuration)
 {
-    var automationConfig = builder.GetConfigByType<AutomationConfig>() ?? new();
-    var deviceConfig = builder.GetConfigByType<DevicesConfig>() ?? new();
-    var homeMapConfig = builder.GetConfigByType<HomeMapConfig>() ?? new();
-    var keeneticProxyConfig = builder.GetConfigByType<KeeneticProxyConfig>() ?? new();
+    var automationConfig = configuration.GetConfigByType<AutomationConfig>() ?? new();
+    var deviceConfig = configuration.GetConfigByType<DevicesConfig>() ?? new();
+    var homeMapConfig = configuration.GetConfigByType<HomeMapConfig>() ?? new();
+    var keeneticProxyConfig = configuration.GetConfigByType<KeeneticProxyConfig>() ?? new();
 
     return ConfigHelper.MakeConfig(deviceConfig, homeMapConfig, automationConfig, keeneticProxyConfig);
 }
