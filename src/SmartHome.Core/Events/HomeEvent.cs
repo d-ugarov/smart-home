@@ -23,6 +23,23 @@ public sealed record EntityStateChanged(string EntityId, EntityState? Previous, 
 /// <param name="Origin"> Name of the automation, or the auto-off. </param>
 public sealed record AutomationCommandExecuted(string Origin, Entity Target, OnOff Command, CommandOutcome Outcome) : HomeEvent;
 
+public sealed record CleaningStarted(Entity Valve, DateTimeOffset Until) : HomeEvent;
+
+/// <summary> The leak sensor fired while the bathroom is being cleaned: the valves were not closed. </summary>
+public sealed record LeakHeldBack(Entity Valve, Entity Sensor) : HomeEvent;
+
+public sealed record CleaningEnded(Entity Valve, CleaningEnd End) : HomeEvent;
+
+public enum CleaningEnd
+{
+    SensorDry,
+
+    /// <summary> The sensor reports only when it gets wet: the valves are closed at the end. </summary>
+    SensorWet,
+
+    SensorNotRead,
+}
+
 /// <summary> Something the owner has to look at: the server works, but not fully. </summary>
 public sealed record ServerProblem(string Text) : HomeEvent;
 

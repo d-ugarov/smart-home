@@ -47,7 +47,8 @@
                 "Items": [
                   { "Entity": "sensor.bathroom_leak" },
                   { "Entity": "valve.bathroom", "Label": "Open valves", "Valve": "Open" },
-                  { "Entity": "valve.bathroom", "Label": "Close valves", "Valve": "Close" }
+                  { "Entity": "valve.bathroom", "Label": "Close valves", "Valve": "Close" },
+                  { "Entity": "valve.bathroom", "Label": "Cleaning", "Cleaning": true }
                 ]
               }
             ],

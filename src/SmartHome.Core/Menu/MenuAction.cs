@@ -46,6 +46,11 @@ public abstract record MenuAction
 
     public sealed record ChangeVacation(VacationChange Change) : MenuAction;
 
+    /// <summary> The page of the cleaning of a bathroom, opened from the valve item of the page. </summary>
+    public sealed record Cleaning(string PageId, string EntityId) : MenuAction;
+
+    public sealed record ChangeCleaning(string PageId, string EntityId, CleaningChange Change) : MenuAction;
+
     public string Serialize() => this switch
     {
         Dashboard => "home",
@@ -61,6 +66,8 @@ public abstract record MenuAction
         ChangeRun x => Join("sc", x.AutomationId, Number(x.RuleIndex), Number(x.RunTime.ToUnixTimeSeconds()), x.Change.ToString()),
         Vacation => "v",
         ChangeVacation x => Join("v", x.Change.ToString()),
+        Cleaning x => Join("c", x.PageId, x.EntityId),
+        ChangeCleaning x => Join("cc", x.PageId, x.EntityId, x.Change.ToString()),
         _ => throw new NotSupportedException(GetType().Name),
     };
 
@@ -86,6 +93,8 @@ public abstract record MenuAction
                 => new ChangeRun(automation, index, DateTimeOffset.FromUnixTimeSeconds(seconds), c),
             ["v"] => new Vacation(),
             ["v", var change] when Enum.TryParse<VacationChange>(change, out var c) && Enum.IsDefined(c) => new ChangeVacation(c),
+            ["c", var page, var entity] => new Cleaning(page, entity),
+            ["cc", var page, var entity, var change] when Enum.TryParse<CleaningChange>(change, out var c) && Enum.IsDefined(c) => new ChangeCleaning(page, entity, c),
             _ => new Dashboard(),
         };
     }
@@ -107,5 +116,14 @@ public enum VacationChange
     /// <summary> One day less; the vacation ends when nothing is left. </summary>
     MinusDay,
 
+    End,
+}
+
+/// <summary> The cleaning lasts this long from the press; a press during the cleaning moves its end. </summary>
+public enum CleaningChange
+{
+    HalfHour,
+    Hour,
+    TwoHours,
     End,
 }

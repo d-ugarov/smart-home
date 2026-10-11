@@ -99,15 +99,21 @@ public sealed partial class HomeOptionsValidator : IValidateOptions<HomeOptions>
                 if (entity.Type == EntityType.Group)
                     errors.Add($"Menu page '{page.Id}': group '{item.Entity}' has no state of its own to show, list its switches");
 
-                if (entity.Type == EntityType.Valve && item.Valve == null)
-                    errors.Add($"Menu page '{page.Id}': valve '{item.Entity}' needs Valve (Open or Close)");
+                if (entity.Type == EntityType.Valve && (item.Valve != null) == item.Cleaning)
+                    errors.Add($"Menu page '{page.Id}': valve '{item.Entity}' needs either Valve (Open or Close) or Cleaning");
 
                 if (entity.Type != EntityType.Valve && item.Valve != null)
                     errors.Add($"Menu page '{page.Id}': Valve is set for '{item.Entity}', which is not a valve");
 
-                MenuAction action = item.Valve is { } command
-                    ? new MenuAction.RunValve(page.Id, item.Entity, command)
-                    : new MenuAction.Toggle(page.Id, item.Entity);
+                if (entity.Type != EntityType.Valve && item.Cleaning)
+                    errors.Add($"Menu page '{page.Id}': Cleaning is set for '{item.Entity}', which is not a valve");
+
+                MenuAction action = item switch
+                {
+                    {Valve: { } command} => new MenuAction.RunValve(page.Id, item.Entity, command),
+                    {Cleaning: true} => new MenuAction.ChangeCleaning(page.Id, item.Entity, Enum.GetValues<CleaningChange>().MaxBy(x => x.ToString().Length)),
+                    _ => new MenuAction.Toggle(page.Id, item.Entity),
+                };
 
                 if (MenuAction.ByteLength(action) > MenuAction.MaxLength)
                     errors.Add($"Menu page '{page.Id}': ids of the page and '{item.Entity}' are too long for a Telegram button (64 bytes)");

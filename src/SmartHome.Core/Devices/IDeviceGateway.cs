@@ -16,4 +16,7 @@ public interface IDeviceGateway
 
     /// <summary> Starts the open or close pulse of a valve. </summary>
     Task<OperationResult> RunValveAsync(Entity valve, ValveCommand command, CancellationToken cancellationToken);
+
+    /// <summary> The sensor whose input closes the valve by a scenario of the controller (leak protection); null - none. </summary>
+    Entity? LeakSensorOf(Entity valve);
 }

@@ -23,6 +23,7 @@ internal sealed class MegaDBindings
     private readonly Dictionary<string, PortBinding> byEntity = [];
     private readonly Dictionary<string, ValveBinding> valves = [];
     private readonly Dictionary<(string Controller, int Port), (ValveBinding Valve, ValveCommand Command)> valveRelays = [];
+    private readonly Dictionary<(string Controller, int Port), ValveBinding> valvesByCloseInput = [];
 
     public MegaDBindings(IOptions<MegaDOptions> options, HomeModel home)
     {
@@ -44,6 +45,7 @@ internal sealed class MegaDBindings
                 valves[valve.Entity] = binding;
                 valveRelays[(id, valve.OpenRelay)] = (binding, ValveCommand.Open);
                 valveRelays[(id, valve.CloseRelay)] = (binding, ValveCommand.Close);
+                valvesByCloseInput[(id, valve.CloseInput)] = binding;
             }
         }
     }
@@ -58,6 +60,13 @@ internal sealed class MegaDBindings
 
     public (ValveBinding Valve, ValveCommand Command)? FindValveRelay(MegaDController controller, int port) =>
         valveRelays.TryGetValue((controller.Id, port), out var relay) ? relay : null;
+
+    /// <summary> The valve that the scenario of this input closes. </summary>
+    public ValveBinding? FindValveClosedBy(MegaDController controller, int input) => valvesByCloseInput.GetValueOrDefault((controller.Id, input));
+
+    /// <summary> The sensor on the close input of the valve: the leak sensor. </summary>
+    public Entity? LeakSensorOf(Entity valve) =>
+        FindValve(valve) is { } binding && FindPort(binding.Controller, binding.CloseInput) is {Entity.Type: EntityType.Sensor} sensor ? sensor.Entity : null;
 
     public MegaDController? ControllerOf(Entity entity) => FindPort(entity)?.Controller ?? FindValve(entity)?.Controller;
 

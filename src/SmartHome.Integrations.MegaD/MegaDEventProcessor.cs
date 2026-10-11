@@ -9,7 +9,8 @@ namespace SmartHome.Integrations.MegaD;
 
 /// <summary>
 /// A request of a controller. The answer tells the controller whether to run its own scenario: 200 - the server has
-/// handled the press, 204 - everything else (no rules, hardware inputs, outputs, restarts, unknown requests).
+/// handled the press, 204 - everything else (no rules, hardware inputs, outputs, restarts, unknown requests). The one
+/// exception on a hardware input: the leak sensor of a bathroom being cleaned gets 200, see <see cref="CleaningService"/>.
 /// </summary>
 public interface IMegaDRequestHandler
 {
@@ -21,6 +22,7 @@ internal sealed class MegaDEventProcessor(
     MegaDBindings bindings,
     InputRuleEngine rules,
     ValveService valves,
+    CleaningService cleaning,
     HomeState state,
     HomeEventBus events,
     ILogger<MegaDEventProcessor> logger) : IMegaDRequestHandler
@@ -74,7 +76,9 @@ internal sealed class MegaDEventProcessor(
             case EntityType.Button:
             case EntityType.Sensor:
                 events.Publish(new DeviceEventReceived(binding.Controller.Name, $"{entity.Name}: {Press(port.Press)}{(port.Counter is { } cnt ? $", cnt {cnt}" : "")}"));
-                return entity.Type == EntityType.Button && await rules.HandleAsync(entity, port.Press, cancellationToken);
+                return entity.Type == EntityType.Button
+                    ? await rules.HandleAsync(entity, port.Press, cancellationToken)
+                    : HoldsBackLeak(binding, port);
 
             case EntityType.Switch:
                 if (port.Output is { } output)
@@ -86,6 +90,11 @@ internal sealed class MegaDEventProcessor(
                 return false;
         }
     }
+
+    private bool HoldsBackLeak(PortBinding sensor, MegaDRequest.Port port) =>
+        port is {Press: PressKind.Press, Output: null} &&
+        bindings.FindValveClosedBy(sensor.Controller, sensor.Port) is { } valve &&
+        cleaning.HoldsBack(valve.Valve, sensor.Entity);
 
     private static string Press(PressKind press) => press switch
     {

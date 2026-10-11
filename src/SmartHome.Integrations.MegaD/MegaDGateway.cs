@@ -57,6 +57,8 @@ internal sealed class MegaDGateway(MegaDBindings bindings, MegaDClient client, I
                                             () => client.RunScenarioAsync(binding.Controller, input, cancellationToken));
     }
 
+    public Entity? LeakSensorOf(Entity valve) => bindings.LeakSensorOf(valve);
+
     private EntityValue? Parse(Entity entity, string[] ports)
     {
         if (bindings.FindValve(entity) is { } valve)

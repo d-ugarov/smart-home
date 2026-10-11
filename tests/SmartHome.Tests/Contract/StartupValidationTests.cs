@@ -35,6 +35,10 @@ public class StartupValidationTests
     [TestCase("Home:Automations:1:Rules:0:Conditions:0:PreviousStateLongerThan", "00:20:00", "only for a trigger by a state", TestName = "Previous state in a schedule")]
     [TestCase("Home:Automations:1:Rules:0:Actions:0:Schedule", "floor.off", "a schedule only sends commands", TestName = "Delayed command in a schedule")]
     [TestCase("Home:Automations:0:Rules:3:Trigger:At", "12:00", "rules on states are separate automations", TestName = "Schedule mixed with state rules")]
+    [TestCase("Home:Menu:0:Pages:2:Pages:0:Items:3:Valve", "Open", "needs either Valve (Open or Close) or Cleaning", TestName = "Valve button and cleaning in one")]
+    [TestCase("Home:Menu:0:Pages:2:Pages:0:Items:0:Cleaning", "true", "Cleaning is set for 'sensor.bathroom_leak', which is not a valve", TestName = "Cleaning of a sensor")]
+    [TestCase("MegaD:Controllers:1:Ports:6", null, "Valve 'valve.bathroom' has a cleaning button, but no sensor is bound to its close input",
+              TestName = "Cleaning without a leak sensor")]
     public async Task BrokenConfig_ServerDoesNotStart(string key, string? value, string reason)
     {
         await using var factory = new HomeServerFactory(House.Example, new Dictionary<string, string?> {[key] = value});
@@ -56,7 +60,12 @@ public class StartupValidationTests
     public async Task RealConfig_StartsWithAutomations()
     {
         House.Real.EnsureAvailable();
-        await using var factory = new HomeServerFactory(House.Real, new Dictionary<string, string?> {["Automation:Enabled"] = "true", ["Automation:SchedulesEnabled"] = "true"});
+        await using var factory = new HomeServerFactory(House.Real, new Dictionary<string, string?>
+                                                                    {
+                                                                        ["Automation:Enabled"] = "true",
+                                                                        ["Automation:SchedulesEnabled"] = "true",
+                                                                        ["Cleaning:Enabled"] = "true",
+                                                                    });
 
         Assert.DoesNotThrow(() => factory.CreateClient());
     }

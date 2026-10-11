@@ -107,6 +107,18 @@ internal sealed class MegaDOptionsValidator(IOptions<HomeOptions> homeOptions) :
         foreach (var (id, type) in entities.Where(x => x.Value != EntityType.Group && !bound.ContainsKey(x.Key)))
             errors.Add($"{type} '{id}' is not bound to a MegaD port");
 
+        // The cleaning holds back the leak sensor of the valve: the sensor on its close input.
+        var withLeakSensor = options.Controllers.Values
+                                    .SelectMany(c => c.Valves.Where(v => c.Ports.TryGetValue(v.CloseInput, out var e) && !string.IsNullOrEmpty(e) &&
+                                                                 entities.GetValueOrDefault(e) == EntityType.Sensor))
+                                    .Select(x => x.Entity)
+                                    .ToHashSet();
+        foreach (var valve in CleaningValves(homeOptions.Value.Menu).Where(x => !withLeakSensor.Contains(x)).Distinct())
+            errors.Add($"Valve '{valve}' has a cleaning button, but no sensor is bound to its close input");
+
         return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
     }
+
+    private static IEnumerable<string> CleaningValves(IEnumerable<MenuPageOptions> pages) =>
+        pages.SelectMany(x => x.Items.Where(i => i.Cleaning).Select(i => i.Entity).Concat(CleaningValves(x.Pages)));
 }

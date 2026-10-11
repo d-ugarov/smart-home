@@ -17,5 +17,8 @@ internal static class TelegramMenuRenderer
         return (text, new InlineKeyboardMarkup(rows));
     }
 
+    /// <summary> Buttons under a notification, one per row. </summary>
+    public static InlineKeyboardMarkup Keyboard(IReadOnlyList<MenuButton> buttons) => new(buttons.Select(x => new[] {Button(x)}));
+
     private static InlineKeyboardButton Button(MenuButton button) => InlineKeyboardButton.WithCallbackData(button.Text, button.Action.Serialize());
 }

@@ -93,6 +93,20 @@ public sealed class HomeModel
 
     public MenuPageNode? FindPage(string id) => pagesById.GetValueOrDefault(id);
 
+    /// <summary> The first menu item, in the order of the config, that sends this command to the valve. </summary>
+    public (MenuPageNode Page, MenuItem Item)? FindValveItem(Entity valve, ValveCommand command)
+    {
+        foreach (var page in Flatten(Dashboard))
+        {
+            if (page.Items.FirstOrDefault(x => x.Entity == valve && x.Valve == command) is { } item)
+                return (page, item);
+        }
+
+        return null;
+
+        static IEnumerable<MenuPageNode> Flatten(IEnumerable<MenuPageNode> pages) => pages.SelectMany(x => Flatten(x.Pages).Prepend(x));
+    }
+
     public IReadOnlyList<InputRule> RulesOf(string buttonId) => rulesByButton.GetValueOrDefault(buttonId) ?? [];
 
     public IReadOnlyList<Entity> EntitiesReadOnPress(string buttonId) => readByButton.GetValueOrDefault(buttonId) ?? [];
@@ -113,7 +127,7 @@ public sealed class HomeModel
     {
         var page = new MenuPageNode(options.Id, options.Title, parent, options.ListSwitches);
 
-        page.Items = options.Items.Select(x => new MenuItem(entitiesById[x.Entity], string.IsNullOrEmpty(x.Label) ? null : x.Label, x.Valve)).ToList();
+        page.Items = options.Items.Select(x => new MenuItem(entitiesById[x.Entity], string.IsNullOrEmpty(x.Label) ? null : x.Label, x.Valve, x.Cleaning)).ToList();
         page.Pages = options.Pages.Select(x => CreatePage(x, page)).ToList();
 
         pagesById.Add(page.Id, page);
@@ -184,7 +198,8 @@ public sealed class MenuPageNode(string id, string title, MenuPageNode? parent, 
     public override string ToString() => Id;
 }
 
-public sealed record MenuItem(Entity Entity, string? Label, ValveCommand? Valve)
+/// <param name="Cleaning"> A valve: the button of the cleaning, not of a command. </param>
+public sealed record MenuItem(Entity Entity, string? Label, ValveCommand? Valve, bool Cleaning = false)
 {
     public string Text => Label ?? Entity.Name;
 }

@@ -72,8 +72,14 @@ public sealed class MenuItemOptions
     /// <summary> Button text; the entity name when empty. </summary>
     public string? Label { get; init; }
 
-    /// <summary> Required for a valve: the button opens or closes it (after a confirmation). </summary>
+    /// <summary> For a valve, this or <see cref="Cleaning"/>: the button opens or closes it (after a confirmation). </summary>
     public ValveCommand? Valve { get; init; }
+
+    /// <summary>
+    /// For a valve with a leak sensor: the button opens the page of the cleaning of the bathroom. Shown when
+    /// <see cref="Valves.CleaningSettings.Enabled"/>.
+    /// </summary>
+    public bool Cleaning { get; init; }
 }
 
 /// <summary>

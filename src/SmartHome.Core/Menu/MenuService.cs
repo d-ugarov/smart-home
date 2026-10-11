@@ -11,7 +11,8 @@ namespace SmartHome.Core.Menu;
 /// <summary>
 /// The menu of the house as in <c>master</c>: a page shows sub-pages, then its items with the state read from the
 /// devices right now, then the dynamic list; a press on a switch toggles it and draws the page again.
-/// New: a valve button opens or closes the valve after a confirmation; the pages of automations and schedules, when they are on.
+/// New: a valve button opens or closes the valve after a confirmation; the pages of automations and schedules and the
+/// cleaning of bathrooms, when they are on.
 /// </summary>
 public sealed class MenuService(
     HomeModel home,
@@ -20,6 +21,7 @@ public sealed class MenuService(
     ValveService valves,
     AutomationMenu automations,
     ScheduleMenu schedules,
+    CleaningMenu cleaning,
     ILogger<MenuService> logger)
 {
     public async Task<MenuPage> HandleAsync(MenuAction action, CancellationToken cancellationToken)
@@ -39,6 +41,12 @@ public sealed class MenuService(
             case MenuAction.RunValve x when home.FindPage(x.PageId) is { } page && FindValveItem(page, x.EntityId, x.Command) is { } item:
                 await valves.RunAsync(item.Entity, x.Command, cancellationToken);
                 return await RenderAsync(page, cancellationToken);
+
+            case MenuAction.Cleaning x when cleaning.IsAvailable && home.FindPage(x.PageId) is { } page && FindCleaningItem(page, x.EntityId) is { } item:
+                return cleaning.Render(page, item);
+
+            case MenuAction.ChangeCleaning x when cleaning.IsAvailable && home.FindPage(x.PageId) is { } page && FindCleaningItem(page, x.EntityId) is { } item:
+                return await cleaning.ChangeAsync(page, item, x.Change, cancellationToken);
 
             case MenuAction.Automations when automations.IsAvailable:
                 return automations.Render();
@@ -92,7 +100,7 @@ public sealed class MenuService(
         var snapshot = toRead.Count > 0 ? await gateway.ReadAsync(toRead, cancellationToken) : new Dictionary<string, EntityValue>();
         state.SetAll(snapshot, StateSource.Poll);
 
-        buttons.AddRange(page.Items.Select(x => ItemButton(page, x, snapshot.GetValueOrDefault(x.Entity.Id))));
+        buttons.AddRange(page.Items.Where(x => !x.Cleaning || cleaning.IsAvailable).Select(x => ItemButton(page, x, snapshot.GetValueOrDefault(x.Entity.Id))));
 
         if (page.ListSwitches is { } listed)
         {
@@ -112,6 +120,8 @@ public sealed class MenuService(
     {
         switch (item.Entity.Type)
         {
+            case EntityType.Valve when item.Cleaning:
+                return new MenuButton(cleaning.ButtonText(item), new MenuAction.Cleaning(page.Id, item.Entity.Id));
             case EntityType.Valve:
             {
                 var running = valves.ActivityOf(item.Entity, value) == (item.Valve == ValveCommand.Open ? ValveActivity.Opening : ValveActivity.Closing);
@@ -161,6 +171,9 @@ public sealed class MenuService(
 
     private static MenuItem? FindValveItem(MenuPageNode page, string entityId, ValveCommand command) =>
         page.Items.FirstOrDefault(x => x.Entity.Id == entityId && x.Entity.Type == EntityType.Valve && x.Valve == command);
+
+    private static MenuItem? FindCleaningItem(MenuPageNode page, string entityId) =>
+        page.Items.FirstOrDefault(x => x.Entity.Id == entityId && x.Cleaning);
 
     private static string WithState(MenuItem item, EntityValue? value) =>
         value is OnOffValue known ? $"{StateText(item.Entity, known.State)} {item.Text}" : item.Text;

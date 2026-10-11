@@ -27,4 +27,5 @@ public static class MenuTexts
     public const string SchedulesButton = "🕒 Schedules";
     public const string Vacation = "🏖 Vacation";
     public const string VacationButton = "🏖 Vacation";
+    public const string CleaningMark = "🧽";
 }

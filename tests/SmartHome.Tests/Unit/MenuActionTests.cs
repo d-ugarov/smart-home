@@ -21,6 +21,8 @@ public class MenuActionTests
         new MenuAction.ChangeRun("floor_heating", 1, new DateTimeOffset(2026, 10, 11, 0, 0, 0, TimeSpan.Zero), RunChange.EarlierQuarter),
         new MenuAction.Vacation(),
         new MenuAction.ChangeVacation(VacationChange.MinusDay),
+        new MenuAction.Cleaning("water", "valve.bathroom"),
+        new MenuAction.ChangeCleaning("water", "valve.bathroom", CleaningChange.TwoHours),
     ];
 
     [TestCaseSource(nameof(actions))]
@@ -41,6 +43,9 @@ public class MenuActionTests
     [TestCase("sc:floor_heating:0:1791676800:7", TestName = "Undefined change")]
     [TestCase("sr:floor_heating:first", TestName = "Rule index is not a number")]
     [TestCase("v:17", TestName = "Undefined vacation change")]
+    [TestCase("cc:water:valve.bathroom:5", TestName = "Undefined cleaning change")]
+    [TestCase("cc:water:valve.bathroom:FiveHours", TestName = "Unknown cleaning duration")]
+    [TestCase("c:water", TestName = "Cleaning without a valve")]
     public void Unknown_IsDashboard(string? data)
     {
         Assert.That(MenuAction.Parse(data), Is.EqualTo(new MenuAction.Dashboard()));
