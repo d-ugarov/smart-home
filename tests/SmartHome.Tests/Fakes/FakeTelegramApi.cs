@@ -21,6 +21,9 @@ public sealed class FakeTelegramApi
     private long nextUpdateId = 1;
     private int nextMessageId = 1000;
 
+    /// <summary> A description of the error for a <c>sendMessage</c> that Telegram rejects (e.g. a deleted topic); null - accepted. </summary>
+    public Func<JsonObject, string?>? RejectSend { get; set; }
+
     public IReadOnlyList<TelegramCall> Calls
     {
         get
@@ -103,6 +106,15 @@ public sealed class FakeTelegramApi
 
         lock (sync)
             calls.Add(new TelegramCall(method, body));
+
+        if (method == "sendMessage" && RejectSend?.Invoke(body) is { } error)
+        {
+            return new HttpResponseMessage(HttpStatusCode.BadRequest)
+                   {
+                       Content = new StringContent(new JsonObject {["ok"] = false, ["error_code"] = 400, ["description"] = error}.ToJsonString(), Encoding.UTF8,
+                                                   "application/json"),
+                   };
+        }
 
         JsonNode result = method switch
         {

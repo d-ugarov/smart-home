@@ -28,4 +28,22 @@ public class NotificationDeliveryTests
 
         Assert.That(factory.Network.Devices["2"].StatusRequests, Is.Positive, "the state of the restarted controller was not read");
     }
+
+    [Test]
+    public async Task AnotherChannelHangs_TelegramStillGetsEverything()
+    {
+        var hanging = Substitute.For<INotificationChannel>();
+        hanging.Name.Returns("Hanging");
+        hanging.SendAsync(default!, default).ReturnsForAnyArgs(x => Task.Delay(Timeout.Infinite, x.Arg<CancellationToken>()));
+
+        await using var factory = new HomeServerFactory(House.Example, testServices: x => x.AddSingleton(hanging));
+        using var client = factory.CreateClient();
+
+        await client.GetAsync("/megad/1?st=1");
+        await client.GetAsync("/megad/2?st=1");
+
+        await factory.Network.Telegram.WaitForCallAsync(x => x.Method == "sendMessage" && x.Body["text"]!.GetValue<string>() == "🔄 MegaD-2 restarted",
+                                                        timeout: TimeSpan.FromSeconds(5), description: "the second notification");
+        await hanging.Received(1).SendAsync(Arg.Any<Notification>(), Arg.Any<CancellationToken>());
+    }
 }

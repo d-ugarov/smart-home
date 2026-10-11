@@ -28,4 +28,6 @@ public static class MenuTexts
     public const string Vacation = "🏖 Vacation";
     public const string VacationButton = "🏖 Vacation";
     public const string CleaningMark = "🧽";
+    public const string Notifications = "🔔 Notifications";
+    public const string NotificationsButton = "🔔 Notifications";
 }

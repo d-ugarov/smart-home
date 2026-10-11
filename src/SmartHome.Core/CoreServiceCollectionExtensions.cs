@@ -28,6 +28,7 @@ public static class CoreServiceCollectionExtensions
         services.AddOptions<AutomationSettings>().BindConfiguration(AutomationSettings.Section).ValidateOnStart();
         services.AddSingleton<IValidateOptions<AutomationSettings>, AutomationSettingsValidator>();
         services.AddOptions<CleaningSettings>().BindConfiguration(CleaningSettings.Section);
+        services.AddOptions<NotificationSettings>().BindConfiguration(NotificationSettings.Section);
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<HomeModel>();
@@ -41,6 +42,8 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<AutomationMenu>();
         services.AddSingleton<ScheduleMenu>();
         services.AddSingleton<CleaningMenu>();
+        services.AddSingleton<NotificationPreferences>();
+        services.AddSingleton<NotificationMenu>();
         services.AddSingleton<MenuService>();
 
         // First: the saved state is back before anything reads or changes it.

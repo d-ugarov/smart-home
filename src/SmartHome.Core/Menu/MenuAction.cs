@@ -1,5 +1,6 @@
 using SmartHome.Core.Automations;
 using SmartHome.Core.Entities;
+using SmartHome.Core.Notifications;
 using System.Globalization;
 using System.Text;
 
@@ -51,6 +52,12 @@ public abstract record MenuAction
 
     public sealed record ChangeCleaning(string PageId, string EntityId, CleaningChange Change) : MenuAction;
 
+    /// <summary> The page of notifications: how each category is sent. </summary>
+    public sealed record Notifications : MenuAction;
+
+    /// <param name="Mode"> The mode the button sets, not "the next one": a press on an old message sets what it showed. </param>
+    public sealed record ChangeNotifications(NotificationCategory Category, NotificationMode Mode) : MenuAction;
+
     public string Serialize() => this switch
     {
         Dashboard => "home",
@@ -68,6 +75,8 @@ public abstract record MenuAction
         ChangeVacation x => Join("v", x.Change.ToString()),
         Cleaning x => Join("c", x.PageId, x.EntityId),
         ChangeCleaning x => Join("cc", x.PageId, x.EntityId, x.Change.ToString()),
+        Notifications => "n",
+        ChangeNotifications x => Join("n", x.Category.ToString(), x.Mode.ToString()),
         _ => throw new NotSupportedException(GetType().Name),
     };
 
@@ -95,6 +104,10 @@ public abstract record MenuAction
             ["v", var change] when Enum.TryParse<VacationChange>(change, out var c) && Enum.IsDefined(c) => new ChangeVacation(c),
             ["c", var page, var entity] => new Cleaning(page, entity),
             ["cc", var page, var entity, var change] when Enum.TryParse<CleaningChange>(change, out var c) && Enum.IsDefined(c) => new ChangeCleaning(page, entity, c),
+            ["n"] => new Notifications(),
+            ["n", var category, var mode]
+                when Enum.TryParse<NotificationCategory>(category, out var c) && Enum.IsDefined(c) && Enum.TryParse<NotificationMode>(mode, out var m) && Enum.IsDefined(m)
+                => new ChangeNotifications(c, m),
             _ => new Dashboard(),
         };
     }

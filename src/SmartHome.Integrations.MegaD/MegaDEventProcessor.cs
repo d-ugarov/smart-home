@@ -35,7 +35,7 @@ internal sealed class MegaDEventProcessor(
         if (!bindings.Controllers.TryGetValue(controllerId, out var controller))
         {
             logger.LogWarning("Request of an unknown controller {Controller}: {Query}", controllerId, raw);
-            events.Publish(new DeviceEventReceived($"megad/{controllerId}", $"unknown controller, {raw}"));
+            events.Publish(new DeviceEventReceived($"megad/{controllerId}", $"unknown controller, {raw}", DeviceEventKind.Unknown));
             return false;
         }
 
@@ -52,17 +52,18 @@ internal sealed class MegaDEventProcessor(
                 return await ProcessPortAsync(binding, port, cancellationToken);
 
             case MegaDRequest.Port port when bindings.FindValveRelay(controller, port.Number) is var (valve, command):
-                events.Publish(new DeviceEventReceived(controller.Name, $"{valve.Valve.Name}, {command.ToString().ToLowerInvariant()} relay: {Output(port.Output)}"));
+                var relay = $"{valve.Valve.Name}, {command.ToString().ToLowerInvariant()} relay: {Output(port.Output)}";
+                events.Publish(new DeviceEventReceived(controller.Name, relay, DeviceEventKind.LeakProtection));
                 if (port.Output == OnOff.Off)
                     valves.OnPulseFinished(valve.Valve, command);
                 return false;
 
             case MegaDRequest.Port port when controller.HardwareInputs.Contains(port.Number):
-                events.Publish(new DeviceEventReceived(controller.Name, $"hardware input, {raw}"));
+                events.Publish(new DeviceEventReceived(controller.Name, $"hardware input, {raw}", DeviceEventKind.LeakProtection));
                 return false;
 
             default:
-                events.Publish(new DeviceEventReceived(controller.Name, $"not handled, {raw}"));
+                events.Publish(new DeviceEventReceived(controller.Name, $"not handled, {raw}", DeviceEventKind.Regular));
                 return false;
         }
     }
@@ -75,7 +76,8 @@ internal sealed class MegaDEventProcessor(
         {
             case EntityType.Button:
             case EntityType.Sensor:
-                events.Publish(new DeviceEventReceived(binding.Controller.Name, $"{entity.Name}: {Press(port.Press)}{(port.Counter is { } cnt ? $", cnt {cnt}" : "")}"));
+                var press = $"{entity.Name}: {Press(port.Press)}{(port.Counter is { } cnt ? $", cnt {cnt}" : "")}";
+                events.Publish(new DeviceEventReceived(binding.Controller.Name, press, Kind(binding)));
                 return entity.Type == EntityType.Button
                     ? await rules.HandleAsync(entity, port.Press, cancellationToken)
                     : HoldsBackLeak(binding, port);
@@ -83,13 +85,17 @@ internal sealed class MegaDEventProcessor(
             case EntityType.Switch:
                 if (port.Output is { } output)
                     state.Set(entity.Id, new OnOffValue(output), StateSource.Device);
-                events.Publish(new DeviceEventReceived(binding.Controller.Name, $"{entity.Name}: {Output(port.Output)}"));
+                events.Publish(new DeviceEventReceived(binding.Controller.Name, $"{entity.Name}: {Output(port.Output)}", Kind(binding)));
                 return false;
 
             default:
                 return false;
         }
     }
+
+    // The hardware inputs are the leak protection: the leak sensors and the buttons of the valves run scenarios of the controller there.
+    private static DeviceEventKind Kind(PortBinding binding) =>
+        binding.Controller.HardwareInputs.Contains(binding.Port) ? DeviceEventKind.LeakProtection : DeviceEventKind.Regular;
 
     private bool HoldsBackLeak(PortBinding sensor, MegaDRequest.Port port) =>
         port is {Press: PressKind.Press, Output: null} &&

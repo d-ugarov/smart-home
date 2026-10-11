@@ -10,33 +10,55 @@ using System.Threading.Channels;
 
 namespace SmartHome.Core.Notifications;
 
-/// <summary> Delivers a message to the owner (Telegram). Not the log: the log is files for diagnostics. </summary>
+/// <summary>
+/// Where the notifications go: Telegram now, other targets (an app, mail) are more implementations. Every notification
+/// that is not turned off goes to every channel, each with its own queue; the channel decides how to show it (where,
+/// with or without a sound, what to do with the buttons). Not the log: the log is files for diagnostics.
+/// </summary>
 public interface INotificationChannel
 {
+    /// <summary> For the logs. </summary>
+    string Name { get; }
+
     Task SendAsync(Notification notification, CancellationToken cancellationToken);
 }
 
 /// <param name="Buttons"> Menu buttons under the text, one per row: the owner acts on the notification right away. </param>
-public sealed record Notification(string Text, IReadOnlyList<MenuButton> Buttons)
-{
-    public Notification(string text) : this(text, [])
-    {
-    }
-}
+/// <param name="Silent"> Delivered without a sound. </param>
+public sealed record Notification(string Text, NotificationCategory Category, IReadOnlyList<MenuButton> Buttons, bool Silent);
 
 /// <summary>
 /// The owner learns about every request of the controllers and every command of the rules, as in <c>master</c>, and
-/// of the automations. Categories and turning them off come later.
+/// of the automations - each in its category, sent as the owner chose for it (<see cref="NotificationPreferences"/>).
 /// </summary>
-internal sealed class NotificationService(NotificationQueue queue, HomeModel home, HouseClock clock) : IHomeEventHandler
+internal sealed class NotificationService(NotificationQueue queue, HomeModel home, HouseClock clock, NotificationPreferences preferences) : IHomeEventHandler
 {
     public Task HandleAsync(HomeEvent homeEvent, CancellationToken cancellationToken)
     {
-        if (Format(homeEvent) is { } text)
-            queue.Enqueue(new Notification(text, Buttons(homeEvent)));
+        if (Format(homeEvent) is not { } text)
+            return Task.CompletedTask;
+
+        var category = Category(homeEvent);
+        var mode = preferences.ModeOf(category);
+        if (mode != NotificationMode.Off)
+            queue.Enqueue(new Notification(text, category, Buttons(homeEvent), Silent: mode == NotificationMode.Silent));
 
         return Task.CompletedTask;
     }
+
+    /// <summary> A command that failed is <see cref="NotificationCategory.System"/>: turning its category down does not hide it. </summary>
+    internal static NotificationCategory Category(HomeEvent homeEvent) => homeEvent switch
+    {
+        DeviceEventReceived {Kind: DeviceEventKind.LeakProtection} => NotificationCategory.Security,
+        DeviceEventReceived {Kind: DeviceEventKind.Unknown} => NotificationCategory.System,
+        DeviceEventReceived => NotificationCategory.Events,
+        ValveCommandExecuted or CleaningStarted or LeakHeldBack or CleaningEnded => NotificationCategory.Security,
+        RuleCommandExecuted {Outcome: CommandOutcome.Sent {Result.IsSuccess: false}} => NotificationCategory.System,
+        RuleCommandExecuted => NotificationCategory.Events,
+        AutomationCommandExecuted {Outcome: CommandOutcome.Sent {Result.IsSuccess: false}} => NotificationCategory.System,
+        AutomationCommandExecuted => NotificationCategory.Automation,
+        _ => NotificationCategory.System,
+    };
 
     internal string? Format(HomeEvent homeEvent) => homeEvent switch
     {
@@ -84,39 +106,48 @@ internal sealed class NotificationService(NotificationQueue queue, HomeModel hom
 }
 
 /// <summary>
-/// Notifications wait for delivery here, apart from the event bus: a slow or unreachable Telegram must not hold up the
-/// other handlers. When Telegram is down for long, the oldest messages are dropped instead of piling up.
+/// Notifications wait for delivery here, a queue per channel, apart from the event bus: a slow or unreachable channel
+/// holds up neither the other handlers nor the other channels. When a channel is down for long, its oldest messages are
+/// dropped instead of piling up.
 /// </summary>
 internal sealed class NotificationQueue
 {
     public const int Capacity = 1000;
 
-    private readonly Channel<Notification> channel;
-
-    public NotificationQueue(ILogger<NotificationQueue> logger)
+    public NotificationQueue(IEnumerable<INotificationChannel> channels, ILogger<NotificationQueue> logger)
     {
-        channel = Channel.CreateBounded<Notification>(new BoundedChannelOptions(Capacity) {FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true},
-                                                      dropped => logger.LogWarning("Notification dropped, the queue is full: {Text}", dropped.Text));
+        Outboxes = channels.Select(x => new Outbox(x, Channel.CreateBounded<Notification>(
+                                                          new BoundedChannelOptions(Capacity) {FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true},
+                                                          dropped => logger.LogWarning("Notification dropped, the queue of {Channel} is full: {Text}", x.Name, dropped.Text))))
+                           .ToList();
     }
 
-    public void Enqueue(Notification notification) => channel.Writer.TryWrite(notification);
+    public IReadOnlyList<Outbox> Outboxes { get; }
 
-    public ChannelReader<Notification> Reader => channel.Reader;
+    public void Enqueue(Notification notification)
+    {
+        foreach (var outbox in Outboxes)
+            outbox.Queue.Writer.TryWrite(notification);
+    }
+
+    public sealed record Outbox(INotificationChannel Channel, Channel<Notification> Queue);
 }
 
-internal sealed class NotificationSender(NotificationQueue queue, INotificationChannel channel, ILogger<NotificationSender> logger) : BackgroundService
+internal sealed class NotificationSender(NotificationQueue queue, ILogger<NotificationSender> logger) : BackgroundService
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override Task ExecuteAsync(CancellationToken stoppingToken) => Task.WhenAll(queue.Outboxes.Select(x => SendAsync(x, stoppingToken)));
+
+    private async Task SendAsync(NotificationQueue.Outbox outbox, CancellationToken stoppingToken)
     {
-        await foreach (var notification in queue.Reader.ReadAllAsync(stoppingToken))
+        await foreach (var notification in outbox.Queue.Reader.ReadAllAsync(stoppingToken))
         {
             try
             {
-                await channel.SendAsync(notification, stoppingToken);
+                await outbox.Channel.SendAsync(notification, stoppingToken);
             }
             catch (Exception e) when (e is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
             {
-                logger.LogError(e, "Notification not sent: {Text}", notification.Text);
+                logger.LogError(e, "Notification not sent to {Channel}: {Text}", outbox.Channel.Name, notification.Text);
             }
         }
     }

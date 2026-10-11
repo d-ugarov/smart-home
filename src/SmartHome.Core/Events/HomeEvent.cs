@@ -8,7 +8,20 @@ namespace SmartHome.Core.Events;
 public abstract record HomeEvent;
 
 /// <summary> A request of a device as the integration understood it; <paramref name="Text"/> is for people. </summary>
-public sealed record DeviceEventReceived(string Device, string Text) : HomeEvent;
+public sealed record DeviceEventReceived(string Device, string Text, DeviceEventKind Kind) : HomeEvent;
+
+/// <summary> What the request is about; only the integration knows the wiring. </summary>
+public enum DeviceEventKind
+{
+    /// <summary> Buttons, switches, ports without a binding. </summary>
+    Regular,
+
+    /// <summary> The leak protection: leak sensors, inputs and relays of the valves. </summary>
+    LeakProtection,
+
+    /// <summary> A device the server does not know. </summary>
+    Unknown,
+}
 
 /// <param name="DeviceId"> Unique among integrations, e.g. <c>megad:1</c>. </param>
 public sealed record DeviceRestarted(string DeviceId, string Device) : HomeEvent;

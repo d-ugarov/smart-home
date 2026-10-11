@@ -12,7 +12,7 @@ namespace SmartHome.Core.Menu;
 /// The menu of the house as in <c>master</c>: a page shows sub-pages, then its items with the state read from the
 /// devices right now, then the dynamic list; a press on a switch toggles it and draws the page again.
 /// New: a valve button opens or closes the valve after a confirmation; the pages of automations and schedules and the
-/// cleaning of bathrooms, when they are on.
+/// cleaning of bathrooms and the page of notifications, when they are on.
 /// </summary>
 public sealed class MenuService(
     HomeModel home,
@@ -22,6 +22,7 @@ public sealed class MenuService(
     AutomationMenu automations,
     ScheduleMenu schedules,
     CleaningMenu cleaning,
+    NotificationMenu notifications,
     ILogger<MenuService> logger)
 {
     public async Task<MenuPage> HandleAsync(MenuAction action, CancellationToken cancellationToken)
@@ -72,6 +73,12 @@ public sealed class MenuService(
             case MenuAction.ChangeVacation x when schedules.IsAvailable:
                 return await schedules.ChangeVacationAsync(x.Change, cancellationToken);
 
+            case MenuAction.Notifications when notifications.IsAvailable:
+                return notifications.Render();
+
+            case MenuAction.ChangeNotifications x when notifications.IsAvailable:
+                return await notifications.ChangeAsync(x.Category, x.Mode, cancellationToken);
+
             default:
                 return Dashboard();
         }
@@ -84,6 +91,8 @@ public sealed class MenuService(
             buttons.Add(new MenuButton(MenuTexts.AutomationsButton, new MenuAction.Automations()));
         if (schedules.IsAvailable)
             buttons.Add(new MenuButton(MenuTexts.SchedulesButton, new MenuAction.Schedules()));
+        if (notifications.IsAvailable)
+            buttons.Add(new MenuButton(MenuTexts.NotificationsButton, new MenuAction.Notifications()));
 
         return new MenuPage(MenuTexts.Dashboard, [], buttons, []);
     }

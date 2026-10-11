@@ -1,6 +1,7 @@
 using SmartHome.Core.Automations;
 using SmartHome.Core.Entities;
 using SmartHome.Core.Menu;
+using SmartHome.Core.Notifications;
 
 namespace SmartHome.Tests.Unit;
 
@@ -23,6 +24,8 @@ public class MenuActionTests
         new MenuAction.ChangeVacation(VacationChange.MinusDay),
         new MenuAction.Cleaning("water", "valve.bathroom"),
         new MenuAction.ChangeCleaning("water", "valve.bathroom", CleaningChange.TwoHours),
+        new MenuAction.Notifications(),
+        new MenuAction.ChangeNotifications(NotificationCategory.Automation, NotificationMode.Silent),
     ];
 
     [TestCaseSource(nameof(actions))]
@@ -46,6 +49,10 @@ public class MenuActionTests
     [TestCase("cc:water:valve.bathroom:5", TestName = "Undefined cleaning change")]
     [TestCase("cc:water:valve.bathroom:FiveHours", TestName = "Unknown cleaning duration")]
     [TestCase("c:water", TestName = "Cleaning without a valve")]
+    [TestCase("n:Events:Loud", TestName = "Unknown notification mode")]
+    [TestCase("n:Events:5", TestName = "Undefined notification mode")]
+    [TestCase("n:9:Off", TestName = "Undefined notification category")]
+    [TestCase("n:Events", TestName = "Notification category without a mode")]
     public void Unknown_IsDashboard(string? data)
     {
         Assert.That(MenuAction.Parse(data), Is.EqualTo(new MenuAction.Dashboard()));

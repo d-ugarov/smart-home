@@ -8,6 +8,9 @@ public class StartupValidationTests
 {
     [TestCase("Telegram:AllowedUsers", null, "AllowedUsers is empty", TestName = "Empty AllowedUsers")]
     [TestCase("Telegram:NotificationChatId", null, "NotificationChatId is required", TestName = "No chat for notifications")]
+    [TestCase("Telegram:NotificationTopics:Leaks", "2", "unknown category 'Leaks'", TestName = "Topic of an unknown category")]
+    [TestCase("Telegram:NotificationTopics:1", "2", "unknown category '1'", TestName = "Topic of a category by number")]
+    [TestCase("Telegram:NotificationTopics:Security", "0", "the topic id must be positive", TestName = "Topic id zero")]
     [TestCase("MegaD:Controllers:1:Ports:15", "button.hall", "rules are not allowed there", TestName = "Button on a leak protection input")]
     [TestCase("MegaD:Controllers:1:Ports:12", "light.hall", "relay of valve 'valve.bathroom'", TestName = "Valve relay as a switch")]
     [TestCase("Home:Rules:0:Actions:0:Entity", "light.nowhere", "unknown action entity 'light.nowhere'", TestName = "Unknown entity in a rule")]
