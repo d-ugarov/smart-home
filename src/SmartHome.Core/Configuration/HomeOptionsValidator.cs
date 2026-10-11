@@ -19,6 +19,7 @@ public sealed partial class HomeOptionsValidator : IValidateOptions<HomeOptions>
         ValidateMenu(options.Menu, entities, errors);
         ValidateRules(options.Rules, entities, errors);
         AutomationOptionsValidator.Validate(options.Automations, entities, errors);
+        ValidateTimeZone(options, errors);
 
         if (options.StatePollInterval < TimeSpan.Zero)
             errors.Add($"{HomeOptions.Section}:{nameof(HomeOptions.StatePollInterval)} must not be negative");
@@ -178,6 +179,21 @@ public sealed partial class HomeOptionsValidator : IValidateOptions<HomeOptions>
                     action.DelayAfter < TimeSpan.Zero || action.DelayAfter > MaxRuleDelay)
                     errors.Add($"{prefix}: delays of '{action.Entity}' must be within 0..{MaxRuleDelay.TotalSeconds:0} s");
             }
+        }
+    }
+
+    private static void ValidateTimeZone(HomeOptions options, List<string> errors)
+    {
+        var key = $"{HomeOptions.Section}:{nameof(HomeOptions.TimeZone)}";
+
+        if (string.IsNullOrWhiteSpace(options.TimeZone))
+        {
+            if (options.Automations.SelectMany(x => x.Rules).Any(x => x.Trigger?.At != null))
+                errors.Add($"{key} is required: schedules run by the local time of the house");
+        }
+        else if (!TimeZoneInfo.TryFindSystemTimeZoneById(options.TimeZone, out _))
+        {
+            errors.Add($"{key}: unknown time zone '{options.TimeZone}', an IANA id is expected, e.g. Europe/Moscow");
         }
     }
 

@@ -48,6 +48,12 @@ namespace SmartHome.Persistence.Migrations
                     b.Property<int?>("RuleIndex")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTimeOffset?>("RunTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Skip")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("State")
                         .HasColumnType("TEXT");
 
@@ -75,6 +81,20 @@ namespace SmartHome.Persistence.Migrations
                     b.HasKey("EntityId");
 
                     b.ToTable("EntityStates");
+                });
+
+            modelBuilder.Entity("SmartHome.Persistence.SettingRow", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("Settings");
                 });
 #pragma warning restore 612, 618
         }

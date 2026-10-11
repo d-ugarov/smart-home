@@ -44,8 +44,10 @@ public sealed class HomeModel
         Automations = options.Automations.Select(CreateAutomation).ToList();
         automationsById = Automations.ToDictionary(x => x.Id);
         rulesByTrigger = Automations.SelectMany(x => x.Rules)
-                                    .GroupBy(x => x.Trigger.Entity.Id)
+                                    .Where(x => x.Trigger is AutomationTrigger.StateChange)
+                                    .GroupBy(x => ((AutomationTrigger.StateChange)x.Trigger).Entity.Id)
                                     .ToDictionary(x => x.Key, x => (IReadOnlyList<AutomationRule>)x.ToList());
+        TimeZone = string.IsNullOrWhiteSpace(options.TimeZone) ? TimeZoneInfo.Utc : TimeZoneInfo.FindSystemTimeZoneById(options.TimeZone);
 
         Dashboard = options.Menu.Select(x => CreatePage(x, parent: null)).ToList();
 
@@ -74,8 +76,11 @@ public sealed class HomeModel
 
     public IReadOnlyList<MenuPageNode> Dashboard { get; }
 
-    /// <summary> In the order of the config. </summary>
+    /// <summary> In the order of the config, schedules among them. </summary>
     public IReadOnlyList<Automation> Automations { get; }
+
+    /// <summary> Schedules run by it; UTC when the house has none. </summary>
+    public TimeZoneInfo TimeZone { get; }
 
     public Entity? FindEntity(string id) => entitiesById.GetValueOrDefault(id);
 
@@ -83,7 +88,7 @@ public sealed class HomeModel
 
     public Automation? FindAutomation(string id) => automationsById.GetValueOrDefault(id);
 
-    /// <summary> Automation rules whose trigger is this switch or group. </summary>
+    /// <summary> Automation rules triggered by a change of this switch or group. </summary>
     public IReadOnlyList<AutomationRule> RulesTriggeredBy(string entityId) => rulesByTrigger.GetValueOrDefault(entityId) ?? [];
 
     public MenuPageNode? FindPage(string id) => pagesById.GetValueOrDefault(id);
@@ -96,7 +101,7 @@ public sealed class HomeModel
     {
         var text = new StringBuilder();
         text.AppendLine($"Home: {Entities.Count} entities, {rulesByButton.Values.Sum(x => x.Count)} rules on {rulesByButton.Count} buttons, {pagesById.Count} menu pages, " +
-                        $"{Automations.Count} automations, auto-off of {AutoOffSwitches.Count} switches");
+                        $"{Automations.Count} automations ({Automations.Count(x => x.IsSchedule)} schedules), auto-off of {AutoOffSwitches.Count} switches");
 
         foreach (var group in Entities.GroupBy(x => x.Type))
             text.AppendLine($"  {group.Key}: {string.Join(", ", group.Select(x => x.Id))}");
@@ -136,13 +141,18 @@ public sealed class HomeModel
         automation.Rules = options.Rules.Select((rule, index) => new AutomationRule(
                                                     automation,
                                                     index,
-                                                    new AutomationTrigger(entitiesById[rule.Trigger!.Entity], rule.Trigger.To!.Value, rule.Trigger.For),
+                                                    CreateTrigger(rule.Trigger!),
                                                     rule.Conditions.Select(CreateCondition).ToList(),
                                                     rule.Actions.Select(CreateAction).ToList()))
                                       .ToList();
 
         return automation;
     }
+
+    private AutomationTrigger CreateTrigger(TriggerOptions options) =>
+        options.At is { } at
+            ? new AutomationTrigger.TimeOfDay(at, options.Days.ToHashSet())
+            : new AutomationTrigger.StateChange(entitiesById[options.Entity!], options.To!.Value, options.For);
 
     private AutomationCondition CreateCondition(AutomationConditionOptions options) => options switch
     {

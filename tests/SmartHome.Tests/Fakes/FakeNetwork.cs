@@ -23,6 +23,9 @@ public sealed class FakeNetwork : HttpMessageHandler
 
     public List<string> UnexpectedRequests { get; } = [];
 
+    /// <summary> Runs before a request to a controller is answered, e.g. to hold it until the server stops. </summary>
+    public Func<FakeMegaD, CancellationToken, Task>? BeforeDeviceAnswers { get; set; }
+
     /// <summary> Relay commands sent to all controllers, in the order they were received. </summary>
     public IReadOnlyList<MegaDCommand> Commands
     {
@@ -55,7 +58,11 @@ public sealed class FakeNetwork : HttpMessageHandler
             return await Telegram.HandleAsync(request, cancellationToken);
 
         if (devicesByHost.TryGetValue(host, out var device))
+        {
+            if (BeforeDeviceAnswers is { } hook)
+                await hook(device, cancellationToken);
             return device.Handle(request);
+        }
 
         lock (sync)
             UnexpectedRequests.Add(request.RequestUri.ToString());

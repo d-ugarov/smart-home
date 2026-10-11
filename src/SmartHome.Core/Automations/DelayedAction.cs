@@ -12,6 +12,7 @@ public sealed record DelayedAction(string Key, DateTimeOffset Due, string Automa
     {
         DelayedWork.Command x => x.Target == entity,
         DelayedWork.Check x => x.Rule.Targets.Contains(entity),
+        // A person does not cancel a schedule: it runs every day.
         _ => false,
     };
 }
@@ -22,4 +23,10 @@ public abstract record DelayedWork
 
     /// <summary> The trigger of the rule has held its state for <see cref="AutomationTrigger.For"/>: check the conditions and act. </summary>
     public sealed record Check(AutomationRule Rule) : DelayedWork;
+
+    /// <summary>
+    /// The next run of a schedule rule, at <see cref="Time"/> by the schedule. The action falls due at another time when
+    /// the run was moved once from the menu; <see cref="Skip"/> - skipped once from the menu.
+    /// </summary>
+    public sealed record Run(AutomationRule Rule, DateTimeOffset Time, bool Skip) : DelayedWork;
 }

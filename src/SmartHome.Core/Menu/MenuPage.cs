@@ -23,4 +23,8 @@ public static class MenuTexts
     public const string Scheduled = "Scheduled:";
     public const string AutomationOn = "🟢";
     public const string AutomationOff = "🔘";
+    public const string Schedules = "🕒 Schedules";
+    public const string SchedulesButton = "🕒 Schedules";
+    public const string Vacation = "🏖 Vacation";
+    public const string VacationButton = "🏖 Vacation";
 }

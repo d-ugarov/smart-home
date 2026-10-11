@@ -20,6 +20,9 @@ public sealed class HomeOptions
     /// <summary> Run by themselves, without a press; work only when <see cref="Automations.AutomationSettings.Enabled"/>. </summary>
     public List<AutomationOptions> Automations { get; init; } = [];
 
+    /// <summary> IANA id, e.g. <c>Europe/Moscow</c>; schedules run by it. Required when the house has schedules. </summary>
+    public string TimeZone { get; init; } = "";
+
     /// <summary> How often the state of all entities is read from the devices; zero disables polling. </summary>
     public TimeSpan StatePollInterval { get; init; } = TimeSpan.FromSeconds(10);
 

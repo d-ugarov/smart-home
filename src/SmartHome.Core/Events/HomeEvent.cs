@@ -38,4 +38,15 @@ public abstract record CommandOutcome
 
     /// <summary> A valve pulse is already running. </summary>
     public sealed record Busy : CommandOutcome;
+
+    /// <summary> A schedule did not send the command, as the owner asked from the menu. </summary>
+    public sealed record Withheld(WithheldReason Reason) : CommandOutcome;
+}
+
+public enum WithheldReason
+{
+    /// <summary> Schedules turn nothing on during a vacation; turning off goes on. </summary>
+    Vacation,
+
+    SkippedOnce,
 }

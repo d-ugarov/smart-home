@@ -12,6 +12,9 @@ public sealed class Automation(string id, string name)
     public string Name { get; } = name;
     public IReadOnlyList<AutomationRule> Rules { get; internal set; } = [];
 
+    /// <summary> Its rules run at times of day (they all do, the config does not mix the kinds). </summary>
+    public bool IsSchedule => Rules.Count > 0 && Rules[0].Trigger is AutomationTrigger.TimeOfDay;
+
     public override string ToString() => Id;
 }
 
@@ -34,14 +37,28 @@ public sealed class AutomationRule(Automation automation, int index, AutomationT
                                                           .OfType<Entity>()
                                                           .ToHashSet();
 
-    /// <summary> Key of the wait of a trigger with <see cref="AutomationTrigger.For"/>. </summary>
+    /// <summary> Key of the wait of a trigger with <see cref="AutomationTrigger.StateChange.For"/>. </summary>
     public string HeldKey => $"held:{Automation.Id}:{Index}";
+
+    /// <summary> Key of the next run of a rule with <see cref="AutomationTrigger.TimeOfDay"/>. </summary>
+    public string TimeKey => $"time:{Automation.Id}:{Index}";
+
+    public IReadOnlyList<AutomationAction.Command> Commands { get; } = actions.OfType<AutomationAction.Command>().ToList();
 
     public override string ToString() => $"{Automation.Id} #{Index + 1}";
 }
 
-/// <summary> The entity came to <see cref="To"/>; with <see cref="For"/> - and has held it that long. </summary>
-public sealed record AutomationTrigger(Entity Entity, OnOff To, TimeSpan? For);
+public abstract record AutomationTrigger
+{
+    /// <summary> The entity came to <see cref="To"/>; with <see cref="For"/> - and has held it that long. </summary>
+    public sealed record StateChange(Entity Entity, OnOff To, TimeSpan? For) : AutomationTrigger;
+
+    /// <summary> A schedule: the local time of the house on <see cref="Days"/> (every day when empty). </summary>
+    public sealed record TimeOfDay(TimeOnly At, IReadOnlySet<DayOfWeek> Days) : AutomationTrigger
+    {
+        public bool IsOn(DayOfWeek day) => Days.Count == 0 || Days.Contains(day);
+    }
+}
 
 public abstract record AutomationCondition
 {

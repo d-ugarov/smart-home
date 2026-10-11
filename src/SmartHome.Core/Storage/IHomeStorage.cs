@@ -25,10 +25,20 @@ public interface IHomeStorage
     Task<IReadOnlyDictionary<string, bool>> LoadAutomationSwitchesAsync(CancellationToken cancellationToken);
 
     Task SaveAutomationSwitchAsync(string automationId, bool isOn, CancellationToken cancellationToken);
+
+    /// <summary> A value set from the clients, e.g. the vacation; null when not set. </summary>
+    Task<string?> LoadSettingAsync(string key, CancellationToken cancellationToken);
+
+    /// <summary> Null removes the value. </summary>
+    Task SaveSettingAsync(string key, string? value, CancellationToken cancellationToken);
 }
 
 /// <summary> State of a switch or a group: one record per entity, without history. </summary>
 public sealed record StoredState(string EntityId, OnOff State, DateTimeOffset Since, StateSource Source);
 
-/// <summary> A command for <see cref="EntityId"/> or, with <see cref="RuleIndex"/>, the check of a held trigger. </summary>
-public sealed record StoredDelayedAction(string Key, DateTimeOffset Due, string AutomationId, string? EntityId, OnOff? State, int? RuleIndex);
+/// <summary>
+/// A command for <see cref="EntityId"/>; with <see cref="RuleIndex"/> - the check of a held trigger, or with
+/// <see cref="RunTime"/> the next run of a schedule.
+/// </summary>
+public sealed record StoredDelayedAction(string Key, DateTimeOffset Due, string AutomationId, string? EntityId, OnOff? State, int? RuleIndex,
+                                         DateTimeOffset? RunTime = null, bool Skip = false);

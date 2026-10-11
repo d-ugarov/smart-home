@@ -55,6 +55,31 @@ public class LocalRunTests
     }
 
     [Test]
+    public async Task Simulator_Schedules_InTheDebugMenu()
+    {
+        await using var factory = new HomeServerFactory(House.Example, new Dictionary<string, string?>
+                                                                       {
+                                                                           ["Telegram:UseFakeBot"] = "true",
+                                                                           ["MegaD:UseSimulator"] = "true",
+                                                                           ["Automation:Enabled"] = "true",
+                                                                           ["Automation:SchedulesEnabled"] = "true",
+                                                                       });
+        using var client = factory.CreateClient();
+
+        var dashboard = await client.GetStringAsync("/debug/menu");
+        var schedules = await client.GetStringAsync("/debug/menu?action=s");
+        var vacation = await client.GetStringAsync("/debug/menu?action=v%3APlusWeek");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(dashboard, Does.Contain("[🕒 Schedules]  /debug/menu?action=s"));
+            Assert.That(schedules, Does.Contain("Next runs:").And.Contain("— Floor heating: on]").And.Contain("[🟢 Floor heating]").And.Contain("[🏖 Vacation]"));
+            Assert.That(vacation, Does.Contain("Until ").And.Contain("[✖️ End the vacation]"));
+            Assert.That(factory.Network.UnexpectedRequests, Is.Empty);
+        });
+    }
+
+    [Test]
     public async Task Simulator_Automations_InTheDebugMenu()
     {
         await using var factory = new HomeServerFactory(House.Example, new Dictionary<string, string?>

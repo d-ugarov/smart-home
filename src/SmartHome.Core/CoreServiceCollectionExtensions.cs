@@ -30,12 +30,14 @@ public static class CoreServiceCollectionExtensions
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<HomeModel>();
+        services.AddSingleton<HouseClock>();
         services.AddSingleton<HomeState>();
         services.AddSingleton<HomeEventBus>();
         services.AddSingleton<InputRuleEngine>();
         services.AddSingleton<ValveService>();
         services.AddSingleton<AutomationEngine>();
         services.AddSingleton<AutomationMenu>();
+        services.AddSingleton<ScheduleMenu>();
         services.AddSingleton<MenuService>();
 
         // First: the saved state is back before anything reads or changes it.

@@ -121,6 +121,8 @@
     ],
     // Automations: a trigger (a switch or a group came to a state, optionally holds it) → conditions → actions.
     // A switch changed by a person loses what the automations scheduled for it.
+    // A schedule is an automation whose rules run at times of day (At, on Days or every day) in TimeZone of the house.
+    "TimeZone": "Europe/London",
     "Automations": [
       {
         "Id": "bathroom_fan",
@@ -145,6 +147,20 @@
             "Trigger": { "Entity": "group.bathroom_light", "To": "On" },
             "Actions": [ { "Cancel": "fan.bathroom.off" } ]
           }
+        ]
+      },
+      {
+        "Id": "floor_heating",
+        "Name": "Floor heating",
+        "Rules": [
+          { "Trigger": { "At": "21:00" }, "Actions": [ { "Entity": "heater.floor", "Command": "On" } ] },
+          { "Trigger": { "At": "03:00" }, "Actions": [ { "Entity": "heater.floor", "Command": "Off" } ] },
+          {
+            "Trigger": { "At": "07:00", "Days": [ "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" ] },
+            "Actions": [ { "Entity": "heater.floor", "Command": "On" } ]
+          },
+          { "Trigger": { "At": "09:00", "Days": [ "Saturday", "Sunday" ] }, "Actions": [ { "Entity": "heater.floor", "Command": "On" } ] },
+          { "Trigger": { "At": "11:00" }, "Actions": [ { "Entity": "heater.floor", "Command": "Off" } ] }
         ]
       }
     ]

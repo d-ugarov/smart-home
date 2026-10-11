@@ -53,7 +53,7 @@ internal sealed class SqliteHomeStorage(IDbContextFactory<HomeDbContext> context
         using var _ = await gate.EnterAsync(cancellationToken);
         await using var context = await contexts.CreateDbContextAsync(cancellationToken);
         return await context.DelayedActions.AsNoTracking()
-                            .Select(x => new StoredDelayedAction(x.Key, x.Due, x.AutomationId, x.EntityId, x.State, x.RuleIndex))
+                            .Select(x => new StoredDelayedAction(x.Key, x.Due, x.AutomationId, x.EntityId, x.State, x.RuleIndex, x.RunTime, x.Skip))
                             .ToListAsync(cancellationToken);
     }
 
@@ -71,6 +71,8 @@ internal sealed class SqliteHomeStorage(IDbContextFactory<HomeDbContext> context
         row.EntityId = action.EntityId;
         row.State = action.State;
         row.RuleIndex = action.RuleIndex;
+        row.RunTime = action.RunTime;
+        row.Skip = action.Skip;
 
         await context.SaveChangesAsync(cancellationToken);
     }
@@ -99,6 +101,34 @@ internal sealed class SqliteHomeStorage(IDbContextFactory<HomeDbContext> context
             context.AutomationSwitches.Add(row = new AutomationSwitchRow {AutomationId = automationId});
 
         row.IsOn = isOn;
+
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<string?> LoadSettingAsync(string key, CancellationToken cancellationToken)
+    {
+        using var _ = await gate.EnterAsync(cancellationToken);
+        await using var context = await contexts.CreateDbContextAsync(cancellationToken);
+        return await context.Settings.AsNoTracking().Where(x => x.Key == key).Select(x => x.Value).SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task SaveSettingAsync(string key, string? value, CancellationToken cancellationToken)
+    {
+        using var _ = await gate.EnterAsync(cancellationToken);
+        await using var context = await contexts.CreateDbContextAsync(cancellationToken);
+
+        var row = await context.Settings.FindAsync([key], cancellationToken);
+        if (value == null)
+        {
+            if (row != null)
+                context.Settings.Remove(row);
+        }
+        else
+        {
+            if (row == null)
+                context.Settings.Add(row = new SettingRow {Key = key});
+            row.Value = value;
+        }
 
         await context.SaveChangesAsync(cancellationToken);
     }

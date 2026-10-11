@@ -11,7 +11,7 @@ namespace SmartHome.Core.Menu;
 /// <summary>
 /// The menu of the house as in <c>master</c>: a page shows sub-pages, then its items with the state read from the
 /// devices right now, then the dynamic list; a press on a switch toggles it and draws the page again.
-/// New: a valve button opens or closes the valve after a confirmation; the page of automations, when they are on.
+/// New: a valve button opens or closes the valve after a confirmation; the pages of automations and schedules, when they are on.
 /// </summary>
 public sealed class MenuService(
     HomeModel home,
@@ -19,6 +19,7 @@ public sealed class MenuService(
     HomeState state,
     ValveService valves,
     AutomationMenu automations,
+    ScheduleMenu schedules,
     ILogger<MenuService> logger)
 {
     public async Task<MenuPage> HandleAsync(MenuAction action, CancellationToken cancellationToken)
@@ -45,6 +46,24 @@ public sealed class MenuService(
             case MenuAction.ToggleAutomation x when automations.IsAvailable:
                 return await automations.ToggleAsync(x.AutomationId, cancellationToken);
 
+            case MenuAction.Schedules when schedules.IsAvailable:
+                return schedules.Render();
+
+            case MenuAction.ToggleSchedule x when schedules.IsAvailable:
+                return await schedules.ToggleAsync(x.AutomationId, cancellationToken);
+
+            case MenuAction.OpenRun x when schedules.IsAvailable:
+                return schedules.RenderRun(x.AutomationId, x.RuleIndex);
+
+            case MenuAction.ChangeRun x when schedules.IsAvailable:
+                return await schedules.ChangeRunAsync(x, cancellationToken);
+
+            case MenuAction.Vacation when schedules.IsAvailable:
+                return schedules.RenderVacation();
+
+            case MenuAction.ChangeVacation x when schedules.IsAvailable:
+                return await schedules.ChangeVacationAsync(x.Change, cancellationToken);
+
             default:
                 return Dashboard();
         }
@@ -55,6 +74,8 @@ public sealed class MenuService(
         var buttons = home.Dashboard.Select(x => new MenuButton(x.Title, new MenuAction.OpenPage(x.Id))).ToList();
         if (automations.IsAvailable)
             buttons.Add(new MenuButton(MenuTexts.AutomationsButton, new MenuAction.Automations()));
+        if (schedules.IsAvailable)
+            buttons.Add(new MenuButton(MenuTexts.SchedulesButton, new MenuAction.Schedules()));
 
         return new MenuPage(MenuTexts.Dashboard, [], buttons, []);
     }

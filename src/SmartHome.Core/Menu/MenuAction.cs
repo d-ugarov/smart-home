@@ -1,4 +1,6 @@
+using SmartHome.Core.Automations;
 using SmartHome.Core.Entities;
+using System.Globalization;
 using System.Text;
 
 namespace SmartHome.Core.Menu;
@@ -29,6 +31,21 @@ public abstract record MenuAction
 
     public sealed record ToggleAutomation(string AutomationId) : MenuAction;
 
+    /// <summary> The page of schedules: their next runs, on/off switches and the vacation. </summary>
+    public sealed record Schedules : MenuAction;
+
+    public sealed record ToggleSchedule(string AutomationId) : MenuAction;
+
+    /// <summary> The page of the next run of a schedule rule. </summary>
+    public sealed record OpenRun(string AutomationId, int RuleIndex) : MenuAction;
+
+    /// <param name="RunTime"> The run the page showed: an old message does not change the run after it. </param>
+    public sealed record ChangeRun(string AutomationId, int RuleIndex, DateTimeOffset RunTime, RunChange Change) : MenuAction;
+
+    public sealed record Vacation : MenuAction;
+
+    public sealed record ChangeVacation(VacationChange Change) : MenuAction;
+
     public string Serialize() => this switch
     {
         Dashboard => "home",
@@ -38,6 +55,12 @@ public abstract record MenuAction
         RunValve x => Join("vr", x.PageId, x.EntityId, x.Command.ToString()),
         Automations => "a",
         ToggleAutomation x => Join("a", x.AutomationId),
+        Schedules => "s",
+        ToggleSchedule x => Join("s", x.AutomationId),
+        OpenRun x => Join("sr", x.AutomationId, Number(x.RuleIndex)),
+        ChangeRun x => Join("sc", x.AutomationId, Number(x.RuleIndex), Number(x.RunTime.ToUnixTimeSeconds()), x.Change.ToString()),
+        Vacation => "v",
+        ChangeVacation x => Join("v", x.Change.ToString()),
         _ => throw new NotSupportedException(GetType().Name),
     };
 
@@ -54,6 +77,15 @@ public abstract record MenuAction
             ["vr", var page, var entity, var command] when Enum.TryParse<ValveCommand>(command, out var c) => new RunValve(page, entity, c),
             ["a"] => new Automations(),
             ["a", var automation] => new ToggleAutomation(automation),
+            ["s"] => new Schedules(),
+            ["s", var automation] => new ToggleSchedule(automation),
+            ["sr", var automation, var rule] when int.TryParse(rule, CultureInfo.InvariantCulture, out var index) => new OpenRun(automation, index),
+            ["sc", var automation, var rule, var time, var change]
+                when int.TryParse(rule, CultureInfo.InvariantCulture, out var index) && long.TryParse(time, CultureInfo.InvariantCulture, out var seconds) &&
+                     seconds >= 0 && seconds <= DateTimeOffset.MaxValue.ToUnixTimeSeconds() && Enum.TryParse<RunChange>(change, out var c) && Enum.IsDefined(c)
+                => new ChangeRun(automation, index, DateTimeOffset.FromUnixTimeSeconds(seconds), c),
+            ["v"] => new Vacation(),
+            ["v", var change] when Enum.TryParse<VacationChange>(change, out var c) && Enum.IsDefined(c) => new ChangeVacation(c),
             _ => new Dashboard(),
         };
     }
@@ -61,4 +93,19 @@ public abstract record MenuAction
     public static int ByteLength(MenuAction action) => Encoding.UTF8.GetByteCount(action.Serialize());
 
     private static string Join(params string[] parts) => string.Join(separator, parts);
+
+    private static string Number(long value) => value.ToString(CultureInfo.InvariantCulture);
+}
+
+public enum VacationChange
+{
+    /// <summary> One more day; without a vacation - the rest of today. </summary>
+    PlusDay,
+
+    PlusWeek,
+
+    /// <summary> One day less; the vacation ends when nothing is left. </summary>
+    MinusDay,
+
+    End,
 }

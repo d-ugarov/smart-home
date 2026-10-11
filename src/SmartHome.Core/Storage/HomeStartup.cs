@@ -35,7 +35,11 @@ internal sealed class HomeStartup(
         cancellationToken.ThrowIfCancellationRequested();
 
         if (!result.IsSuccess)
+        {
             events.Publish(new ServerProblem($"Database unavailable, the state is kept in memory only: {result.Error}"));
+            // Schedules and the auto-off still run: from now on, without what was saved.
+            await automations.LoadAsync(fromStorage: false, cancellationToken);
+        }
     }
 
     private async Task RestoreAsync(CancellationToken cancellationToken)
@@ -49,7 +53,7 @@ internal sealed class HomeStartup(
         state.Restore(saved);
         logger.LogInformation("State of {Count} entities restored", saved.Count);
 
-        await automations.LoadAsync(cancellationToken);
+        await automations.LoadAsync(fromStorage: true, cancellationToken);
     }
 
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;

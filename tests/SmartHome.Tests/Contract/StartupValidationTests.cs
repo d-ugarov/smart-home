@@ -22,10 +22,19 @@ public class StartupValidationTests
     [TestCase("MegaD:Controllers:2:Ports:13", "group.bathroom_light", "group 'group.bathroom_light' has no hardware", TestName = "Group on a port")]
     [TestCase("Home:Automations:0:Id", "auto_off", "'auto_off' is reserved", TestName = "Reserved automation id")]
     [TestCase("Home:Automations:0:Rules:0:Trigger:Entity", "sensor.bathroom_leak", "only switches and groups are allowed", TestName = "Trigger on a sensor")]
-    [TestCase("Home:Automations:0:Rules:0:Conditions:1:PreviousStateLongerThan", "00:20:00", "only for a trigger without For",
+    [TestCase("Home:Automations:0:Rules:0:Conditions:1:PreviousStateLongerThan", "00:20:00", "only for a trigger by a state, without For",
               TestName = "Previous state of a held trigger")]
     [TestCase("Home:Automations:0:Rules:3:Actions:0:Cancel", "fan.nowhere.off", "no automation schedules this key", TestName = "Cancel of an unknown key")]
     [TestCase("Home:Automations:0:Rules:1:Actions:0:Schedule", null, "Delay of 'fan.bathroom' needs a Schedule key", TestName = "Delay without a key")]
+    [TestCase("Home:TimeZone", null, "Home:TimeZone is required", TestName = "Schedule without a time zone")]
+    [TestCase("Home:TimeZone", "Mars/Olympus", "unknown time zone 'Mars/Olympus'", TestName = "Unknown time zone")]
+    [TestCase("Home:Automations:1:Rules:0:Trigger:Entity", "light.hall", "a trigger is either At (+ Days) or Entity + To (+ For)", TestName = "Time and state in one trigger")]
+    [TestCase("Home:Automations:1:Rules:0:Trigger:At", "21:00:30", "At must be whole minutes", TestName = "Time with seconds")]
+    [TestCase("Home:Automations:1:Rules:2:Trigger:Days:1", "Monday", "Days must be distinct days of the week", TestName = "Day listed twice")]
+    [TestCase("Home:Automations:0:Rules:0:Trigger:Days:0", "Monday", "Days are only for a trigger At", TestName = "Days of a state trigger")]
+    [TestCase("Home:Automations:1:Rules:0:Conditions:0:PreviousStateLongerThan", "00:20:00", "only for a trigger by a state", TestName = "Previous state in a schedule")]
+    [TestCase("Home:Automations:1:Rules:0:Actions:0:Schedule", "floor.off", "a schedule only sends commands", TestName = "Delayed command in a schedule")]
+    [TestCase("Home:Automations:0:Rules:3:Trigger:At", "12:00", "rules on states are separate automations", TestName = "Schedule mixed with state rules")]
     public async Task BrokenConfig_ServerDoesNotStart(string key, string? value, string reason)
     {
         await using var factory = new HomeServerFactory(House.Example, new Dictionary<string, string?> {[key] = value});
@@ -47,7 +56,7 @@ public class StartupValidationTests
     public async Task RealConfig_StartsWithAutomations()
     {
         House.Real.EnsureAvailable();
-        await using var factory = new HomeServerFactory(House.Real, new Dictionary<string, string?> {["Automation:Enabled"] = "true"});
+        await using var factory = new HomeServerFactory(House.Real, new Dictionary<string, string?> {["Automation:Enabled"] = "true", ["Automation:SchedulesEnabled"] = "true"});
 
         Assert.DoesNotThrow(() => factory.CreateClient());
     }

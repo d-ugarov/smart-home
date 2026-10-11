@@ -4,7 +4,8 @@ namespace SmartHome.Core.Configuration;
 
 /// <summary>
 /// An automation of the house: rules that run by themselves, without a press. Turned on and off from the menu as a
-/// whole, e.g. "the fan of the shower follows the light" is four rules.
+/// whole, e.g. "the fan of the shower follows the light" is four rules. A schedule is an automation whose rules all run
+/// at times of day (<see cref="TriggerOptions.At"/>).
 /// </summary>
 public sealed class AutomationOptions
 {
@@ -21,12 +22,17 @@ public sealed class AutomationRuleOptions
     public List<AutomationActionOptions> Actions { get; init; } = [];
 }
 
-/// <summary> A switch or a group came to the state <see cref="To"/>; with <see cref="For"/> - and has held it that long. </summary>
+/// <summary>
+/// One of: a switch or a group came to the state <see cref="To"/> (with <see cref="For"/> - and has held it that long);
+/// a time of day <see cref="At"/> in <see cref="HomeOptions.TimeZone"/>, on <see cref="Days"/> (every day when empty).
+/// </summary>
 public sealed class TriggerOptions
 {
-    public string Entity { get; init; } = "";
+    public string? Entity { get; init; }
     public OnOff? To { get; init; }
     public TimeSpan? For { get; init; }
+    public TimeOnly? At { get; init; }
+    public List<DayOfWeek> Days { get; init; } = [];
 }
 
 /// <summary>

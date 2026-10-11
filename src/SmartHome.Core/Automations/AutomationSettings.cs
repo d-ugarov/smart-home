@@ -11,6 +11,12 @@ public sealed class AutomationSettings
     public bool Enabled { get; init; }
 
     /// <summary>
+    /// Automations that run at times of day; off by default, turned on in the house when the schedules of the controllers
+    /// are to be moved to the server. Needs <see cref="Enabled"/>.
+    /// </summary>
+    public bool SchedulesEnabled { get; init; }
+
+    /// <summary>
     /// A scheduled action that is late by more than this - the server was down - is dropped: the house has lived without
     /// it for long. Up to this it is done right after the start. The auto-off is never dropped: the switch is still on.
     /// </summary>

@@ -1,3 +1,4 @@
+using SmartHome.Core.Automations;
 using SmartHome.Core.Entities;
 using SmartHome.Core.Menu;
 
@@ -14,6 +15,12 @@ public class MenuActionTests
         new MenuAction.RunValve("water", "valve.bathroom", ValveCommand.Open),
         new MenuAction.Automations(),
         new MenuAction.ToggleAutomation("bathroom_fan"),
+        new MenuAction.Schedules(),
+        new MenuAction.ToggleSchedule("floor_heating"),
+        new MenuAction.OpenRun("floor_heating", 4),
+        new MenuAction.ChangeRun("floor_heating", 1, new DateTimeOffset(2026, 10, 11, 0, 0, 0, TimeSpan.Zero), RunChange.EarlierQuarter),
+        new MenuAction.Vacation(),
+        new MenuAction.ChangeVacation(VacationChange.MinusDay),
     ];
 
     [TestCaseSource(nameof(actions))]
@@ -29,6 +36,11 @@ public class MenuActionTests
     [TestCase("t:hall")]
     [TestCase("va:water:valve.bathroom:Explode")]
     [TestCase("a:bathroom_fan:extra")]
+    [TestCase("sc:floor_heating:0:99999999999999:Skip", TestName = "Run time past the last date")]
+    [TestCase("sc:floor_heating:0:-1:Skip", TestName = "Negative run time")]
+    [TestCase("sc:floor_heating:0:1791676800:7", TestName = "Undefined change")]
+    [TestCase("sr:floor_heating:first", TestName = "Rule index is not a number")]
+    [TestCase("v:17", TestName = "Undefined vacation change")]
     public void Unknown_IsDashboard(string? data)
     {
         Assert.That(MenuAction.Parse(data), Is.EqualTo(new MenuAction.Dashboard()));

@@ -32,6 +32,12 @@ internal static partial class AutomationOptionsValidator
             if (automation.Rules.Count == 0)
                 errors.Add($"{prefix}: Rules are required");
 
+            var timed = automation.Rules.Count(x => x.Trigger?.At != null);
+            if (timed > 0 && timed < automation.Rules.Count)
+                errors.Add($"{prefix}: rules at times of day (a schedule) and rules on states are separate automations");
+            else if (timed > 0)
+                ValidateScheduleButtons(automation, prefix, errors);
+
             for (var i = 0; i < automation.Rules.Count; i++)
                 ValidateRule(automation.Rules[i], $"{prefix}, rule #{i + 1}", entities, scheduledKeys, errors);
         }
@@ -40,13 +46,29 @@ internal static partial class AutomationOptionsValidator
     private static void ValidateRule(AutomationRuleOptions rule, string prefix, Dictionary<string, EntityOptions> entities, HashSet<string> scheduledKeys,
                                      List<string> errors)
     {
+        var isTimed = rule.Trigger?.At != null;
+
         if (rule.Trigger is not { } trigger)
         {
             errors.Add($"{prefix}: Trigger is required");
         }
+        else if (trigger.At is { } at)
+        {
+            if (trigger.Entity != null || trigger.To != null || trigger.For != null)
+                errors.Add($"{prefix}: a trigger is either At (+ Days) or Entity + To (+ For)");
+
+            if (at != new TimeOnly(at.Hour, at.Minute))
+                errors.Add($"{prefix}: trigger At must be whole minutes");
+
+            if (trigger.Days.Any(x => !Enum.IsDefined(x)) || trigger.Days.Distinct().Count() != trigger.Days.Count)
+                errors.Add($"{prefix}: trigger Days must be distinct days of the week (Monday ... Sunday)");
+        }
         else
         {
-            ValidateState(trigger.Entity, "trigger", prefix, entities, errors);
+            ValidateState(trigger.Entity ?? "", "trigger", prefix, entities, errors);
+
+            if (trigger.Days.Count > 0)
+                errors.Add($"{prefix}: Days are only for a trigger At");
 
             if (trigger.To == null)
                 errors.Add($"{prefix}: trigger needs To (On or Off)");
@@ -78,8 +100,8 @@ internal static partial class AutomationOptionsValidator
             if (condition.PreviousStateLongerThan <= TimeSpan.Zero || condition.PreviousStateNotLongerThan <= TimeSpan.Zero)
                 errors.Add($"{prefix}: the duration of the previous state must be positive");
 
-            if (rule.Trigger?.For != null)
-                errors.Add($"{prefix}: the previous state is known only for a trigger without For");
+            if (rule.Trigger?.For != null || isTimed)
+                errors.Add($"{prefix}: the previous state is known only for a trigger by a state, without For");
         }
 
         if (rule.Actions.Count == 0)
@@ -87,6 +109,12 @@ internal static partial class AutomationOptionsValidator
 
         foreach (var action in rule.Actions)
         {
+            if (isTimed && (action.Schedule != null || action.Cancel != null))
+            {
+                errors.Add($"{prefix}: a schedule only sends commands, without Schedule and Cancel");
+                continue;
+            }
+
             if (action.Cancel is { } cancel)
             {
                 if (action.Entity != null || action.Command != null || action.Schedule != null || action.Delay != null)
@@ -113,6 +141,14 @@ internal static partial class AutomationOptionsValidator
                 errors.Add($"{prefix}: Delay of '{action.Entity}' needs a Schedule key, which a later action can cancel");
             }
         }
+    }
+
+    private static void ValidateScheduleButtons(AutomationOptions automation, string prefix, List<string> errors)
+    {
+        var longest = Enum.GetValues<RunChange>()
+                          .Max(x => MenuAction.ByteLength(new MenuAction.ChangeRun(automation.Id, automation.Rules.Count - 1, DateTimeOffset.MaxValue, x)));
+        if (longest > MenuAction.MaxLength)
+            errors.Add($"{prefix}: the id is too long for a Telegram button (64 bytes)");
     }
 
     /// <summary> Triggers and conditions watch switches and groups. </summary>

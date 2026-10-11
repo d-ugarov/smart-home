@@ -53,6 +53,8 @@ internal sealed class NotificationService(NotificationQueue queue) : IHomeEventH
         CommandOutcome.Sent x => $"⚠️ failed: {x.Result.Error}",
         CommandOutcome.Skipped x => $"skipped, already {Texts.Of(x.State)}",
         CommandOutcome.Busy => "skipped, the previous pulse is still running",
+        CommandOutcome.Withheld {Reason: WithheldReason.Vacation} => "skipped, vacation",
+        CommandOutcome.Withheld {Reason: WithheldReason.SkippedOnce} => "skipped once from the menu",
         _ => outcome.ToString(),
     };
 }
