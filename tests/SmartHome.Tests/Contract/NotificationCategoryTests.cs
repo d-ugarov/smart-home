@@ -20,6 +20,8 @@ public class NotificationCategoryTests
     private const string Marker = "/megad/1?pt=15";
     private const string MarkerText = "MegaD-1: hardware input, pt=15";
 
+    private static readonly TimeSpan NotificationBurstWindow = TimeSpan.FromMinutes(1);
+
     private static readonly DateTimeOffset start = new(2026, 10, 10, 12, 0, 0, TimeSpan.Zero);
 
     private FakeTimeProvider time = null!;
@@ -198,6 +200,30 @@ public class NotificationCategoryTests
             Assert.That(sent, Is.EqualTo(new[] {("MegaD-1: Hall switch: click", false), ("→ Hall light: toggle — OK", false), (MarkerText, false)}));
         });
         TempDirectory.Delete(data);
+    }
+
+    [Test]
+    public async Task LeakSensorBurst_FirstAtOnce_RepeatsAsOneLineAMinute_ThenAtOnceAgain()
+    {
+        // The burst recorded on the shower sensor (2026-10-11), on the sensor of the example flat.
+        string[] burst = ["cnt=4", "cnt=4", "cnt=5", "cnt=6", "cnt=7", "cnt=8", "cnt=9", "cnt=10", "cnt=11", "m=2&cnt=11"];
+        foreach (var query in burst)
+            await client.GetAsync($"/megad/1?pt=6&{query}&mdid=1");
+        await client.GetAsync(Marker);
+        var atOnce = await SentUntilMarkerAsync();
+
+        time.Advance(NotificationBurstWindow);
+        await SentAsync(3);
+        time.Advance(NotificationBurstWindow);
+        await Task.Delay(200);
+        await client.GetAsync("/megad/1?pt=6&cnt=12&mdid=1");
+        var sent = await SentAsync(4);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(atOnce, Is.EqualTo(new[] {("MegaD-1: Leak sensor: press, cnt 4", false), (MarkerText, false)}));
+            Assert.That(sent.Skip(2).Select(x => x.Text), Is.EqualTo(new[] {"MegaD-1: Leak sensor: 9 more times in a minute", "MegaD-1: Leak sensor: press, cnt 12"}));
+        });
     }
 
     [Test]

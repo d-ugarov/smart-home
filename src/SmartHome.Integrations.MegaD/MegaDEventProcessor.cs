@@ -77,7 +77,7 @@ internal sealed class MegaDEventProcessor(
             case EntityType.Button:
             case EntityType.Sensor:
                 var press = $"{entity.Name}: {Press(port.Press)}{(port.Counter is { } cnt ? $", cnt {cnt}" : "")}";
-                events.Publish(new DeviceEventReceived(binding.Controller.Name, press, Kind(binding)));
+                events.Publish(new DeviceEventReceived(binding.Controller.Name, press, Kind(binding), entity));
                 return entity.Type == EntityType.Button
                     ? await rules.HandleAsync(entity, port.Press, cancellationToken)
                     : HoldsBackLeak(binding, port);
@@ -85,7 +85,7 @@ internal sealed class MegaDEventProcessor(
             case EntityType.Switch:
                 if (port.Output is { } output)
                     state.Set(entity.Id, new OnOffValue(output), StateSource.Device);
-                events.Publish(new DeviceEventReceived(binding.Controller.Name, $"{entity.Name}: {Output(port.Output)}", Kind(binding)));
+                events.Publish(new DeviceEventReceived(binding.Controller.Name, $"{entity.Name}: {Output(port.Output)}", Kind(binding), entity));
                 return false;
 
             default:

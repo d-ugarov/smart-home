@@ -30,21 +30,44 @@ public sealed record Notification(string Text, NotificationCategory Category, IR
 /// <summary>
 /// The owner learns about every request of the controllers and every command of the rules, as in <c>master</c>, and
 /// of the automations - each in its category, sent as the owner chose for it (<see cref="NotificationPreferences"/>).
+/// Repeats of a leak sensor are counted, not sent one by one (<see cref="NotificationBursts"/>).
 /// </summary>
-internal sealed class NotificationService(NotificationQueue queue, HomeModel home, HouseClock clock, NotificationPreferences preferences) : IHomeEventHandler
+internal sealed class NotificationService(NotificationQueue queue, NotificationBursts bursts, HomeModel home, HouseClock clock, NotificationPreferences preferences)
+    : IHomeEventHandler
 {
     public Task HandleAsync(HomeEvent homeEvent, CancellationToken cancellationToken)
     {
         if (Format(homeEvent) is not { } text)
             return Task.CompletedTask;
 
-        var category = Category(homeEvent);
-        var mode = preferences.ModeOf(category);
-        if (mode != NotificationMode.Off)
-            queue.Enqueue(new Notification(text, category, Buttons(homeEvent), Silent: mode == NotificationMode.Silent));
+        if (Burst(homeEvent) is var (key, repeats) && !bursts.Start(key, count => Create(homeEvent, repeats(count))))
+            return Task.CompletedTask;
+
+        if (Create(homeEvent, text) is { } notification)
+            queue.Enqueue(notification);
 
         return Task.CompletedTask;
     }
+
+    /// <summary> Null - the category is turned off. </summary>
+    private Notification? Create(HomeEvent homeEvent, string text)
+    {
+        var category = Category(homeEvent);
+        var mode = preferences.ModeOf(category);
+        return mode == NotificationMode.Off ? null : new Notification(text, category, Buttons(homeEvent), Silent: mode == NotificationMode.Silent);
+    }
+
+    /// <summary> Events of a leak sensor: the key of its burst and the line for the repeats. </summary>
+    private static (string Key, Func<int, string> Repeats)? Burst(HomeEvent homeEvent) => homeEvent switch
+    {
+        DeviceEventReceived {Kind: DeviceEventKind.LeakProtection, Entity: {Type: EntityType.Sensor} sensor} x =>
+            ($"sensor:{sensor.Id}", count => $"{x.Device}: {sensor.Name}: {count} more {Times(count)} in a minute"),
+        LeakHeldBack x =>
+            ($"held:{x.Sensor.Id}", count => $"🚨 {x.Sensor.Name} fired {count} more {Times(count)} during the cleaning — {x.Valve.Name} not closed"),
+        _ => null,
+    };
+
+    private static string Times(int count) => count == 1 ? "time" : "times";
 
     /// <summary> A command that failed is <see cref="NotificationCategory.System"/>: turning its category down does not hide it. </summary>
     internal static NotificationCategory Category(HomeEvent homeEvent) => homeEvent switch

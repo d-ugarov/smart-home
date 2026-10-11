@@ -50,6 +50,7 @@ public static class CoreServiceCollectionExtensions
         services.AddHostedService<HomeStartup>();
 
         services.AddSingleton<NotificationQueue>();
+        services.AddSingleton<NotificationBursts>();
         services.AddSingleton<IHomeEventHandler, NotificationService>();
         services.AddSingleton<StatePersistence>();
         services.AddSingleton<IHomeEventHandler>(x => x.GetRequiredService<StatePersistence>());

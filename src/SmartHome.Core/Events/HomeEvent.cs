@@ -8,7 +8,8 @@ namespace SmartHome.Core.Events;
 public abstract record HomeEvent;
 
 /// <summary> A request of a device as the integration understood it; <paramref name="Text"/> is for people. </summary>
-public sealed record DeviceEventReceived(string Device, string Text, DeviceEventKind Kind) : HomeEvent;
+/// <param name="Entity"> Bound to the port of the request; null - a port without a binding, a controller itself. </param>
+public sealed record DeviceEventReceived(string Device, string Text, DeviceEventKind Kind, Entity? Entity = null) : HomeEvent;
 
 /// <summary> What the request is about; only the integration knows the wiring. </summary>
 public enum DeviceEventKind
