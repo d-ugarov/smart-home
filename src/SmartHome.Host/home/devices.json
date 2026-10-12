@@ -31,6 +31,8 @@
         "Ports": {
           "0": "button.living_room",
           "1": "button.living_room_2",
+          "2": "meter.bathroom_cold_water",
+          "3": "meter.bathroom_hot_water",
           "7": "light.living_room_chandelier",
           "8": "light.living_room_spots",
           "9": "light.bedroom",

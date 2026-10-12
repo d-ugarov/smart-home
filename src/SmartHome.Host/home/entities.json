@@ -24,7 +24,11 @@
       { "Id": "light.living_room_spots", "Name": "Living room spots", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" }, "AutoOffAfter": "08:00:00" },
       { "Id": "light.bedroom", "Name": "Bedroom light", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" }, "AutoOffAfter": "08:00:00" },
       { "Id": "light.bedroom_night", "Name": "Bedroom night light", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" }, "AutoOffAfter": "08:00:00" },
-      { "Id": "heater.floor", "Name": "Floor heating", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" } }
+      { "Id": "heater.floor", "Name": "Floor heating", "Type": "Switch", "Icons": { "On": "🟢", "Off": "🔘" } },
+      { "Id": "meter.bathroom_cold_water", "Name": "Bathroom, cold", "Type": "Meter", "Meter": { "Resource": "ColdWater", "PulseWeight": 0.01 } },
+      { "Id": "meter.bathroom_hot_water", "Name": "Bathroom, hot", "Type": "Meter", "Meter": { "Resource": "HotWater", "PulseWeight": 0.01 } },
+      { "Id": "meter.electricity_day", "Name": "Electricity, day (T1)", "Type": "Meter", "Meter": { "Resource": "Electricity" } },
+      { "Id": "meter.electricity_night", "Name": "Electricity, night (T2)", "Type": "Meter", "Meter": { "Resource": "Electricity" } }
     ],
     "Menu": [
       {

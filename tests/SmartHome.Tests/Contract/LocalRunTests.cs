@@ -80,6 +80,32 @@ public class LocalRunTests
     }
 
     [Test]
+    public async Task Simulator_Meters_InTheDebugMenu()
+    {
+        await using var factory = new HomeServerFactory(House.Example, new Dictionary<string, string?>
+                                                                       {
+                                                                           ["Telegram:UseFakeBot"] = "true",
+                                                                           ["MegaD:UseSimulator"] = "true",
+                                                                           ["Meters:Enabled"] = "true",
+                                                                       });
+        using var client = factory.CreateClient();
+
+        var dashboard = await client.GetStringAsync("/debug/menu");
+        var meter = await client.GetStringAsync("/debug/menu?action=mt%3Ameter.bathroom_cold_water");
+        // The keypad of the page with the digits typed: "mk:{meter}:{opened}:" → "ms:{meter}:{opened}:42".
+        var keypad = Uri.UnescapeDataString(meter.Split('\n').Single(x => x.StartsWith("[✏️ By the dial]")).Split("action=")[1].Trim());
+        var saved = await client.GetStringAsync("/debug/menu?action=" + Uri.EscapeDataString("ms" + keypad[2..] + "42"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(dashboard, Does.Contain("[📊 Meters]  /debug/menu?action=m%3AThisMonth"));
+            Assert.That(meter, Does.Contain("The reading is not set"));
+            Assert.That(saved, Does.Contain("✅ Saved: 42.000 m³.").And.Contain("Now: 42.000 m³"), "the simulated counter is read");
+            Assert.That(factory.Network.UnexpectedRequests, Is.Empty);
+        });
+    }
+
+    [Test]
     public async Task Simulator_Automations_InTheDebugMenu()
     {
         await using var factory = new HomeServerFactory(House.Example, new Dictionary<string, string?>

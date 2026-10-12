@@ -1,9 +1,12 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SmartHome.Core.Entities;
 using SmartHome.Core.Events;
+using SmartHome.Core.Meters;
 using SmartHome.Core.Rules;
 using SmartHome.Core.State;
 using SmartHome.Core.Valves;
+using System.Net;
 
 namespace SmartHome.Integrations.MegaD;
 
@@ -14,6 +17,9 @@ namespace SmartHome.Integrations.MegaD;
 /// </summary>
 public interface IMegaDRequestHandler
 {
+    /// <summary> The request comes from the controller it names; see <see cref="MegaDOptions.AcceptOnlyControllers"/>. </summary>
+    bool IsFromController(string controllerId, IPAddress? sender);
+
     /// <returns> true - answer 200, the controller does not run its scenario. </returns>
     Task<bool> ProcessAsync(string controllerId, IReadOnlyList<KeyValuePair<string, string>> query, CancellationToken cancellationToken);
 }
@@ -23,10 +29,32 @@ internal sealed class MegaDEventProcessor(
     InputRuleEngine rules,
     ValveService valves,
     CleaningService cleaning,
+    MeterService meters,
     HomeState state,
     HomeEventBus events,
+    IOptions<MegaDOptions> options,
     ILogger<MegaDEventProcessor> logger) : IMegaDRequestHandler
 {
+    public bool IsFromController(string controllerId, IPAddress? sender)
+    {
+        if (!options.Value.AcceptOnlyControllers)
+            return true;
+
+        if (sender == null)
+            return false;
+
+        if (sender.IsIPv4MappedToIPv6)
+            sender = sender.MapToIPv4();
+
+        if (options.Value.UseSimulator && IPAddress.IsLoopback(sender))
+            return true;
+
+        // A controller of the house that calls with a wrong id is still heard: it is reported as an unknown controller.
+        return bindings.Controllers.TryGetValue(controllerId, out var controller)
+            ? sender.Equals(controller.Ip)
+            : bindings.Controllers.Values.Any(x => sender.Equals(x.Ip));
+    }
+
     /// <returns> true - answer 200, the controller does not run its scenario. </returns>
     public async Task<bool> ProcessAsync(string controllerId, IReadOnlyList<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
     {
@@ -49,7 +77,7 @@ internal sealed class MegaDEventProcessor(
                 return false;
 
             case MegaDRequest.Port port when bindings.FindPort(controller, port.Number) is { } binding:
-                return await ProcessPortAsync(binding, port, cancellationToken);
+                return await ProcessPortAsync(binding, port, raw, cancellationToken);
 
             case MegaDRequest.Port port when bindings.FindValveRelay(controller, port.Number) is var (valve, command):
                 var relay = $"{valve.Valve.Name}, {command.ToString().ToLowerInvariant()} relay: {Output(port.Output)}";
@@ -68,7 +96,7 @@ internal sealed class MegaDEventProcessor(
         }
     }
 
-    private async Task<bool> ProcessPortAsync(PortBinding binding, MegaDRequest.Port port, CancellationToken cancellationToken)
+    private async Task<bool> ProcessPortAsync(PortBinding binding, MegaDRequest.Port port, string raw, CancellationToken cancellationToken)
     {
         var entity = binding.Entity;
 
@@ -86,6 +114,17 @@ internal sealed class MegaDEventProcessor(
                 if (port.Output is { } output)
                     state.Set(entity.Id, new OnOffValue(output), StateSource.Device);
                 events.Publish(new DeviceEventReceived(binding.Controller.Name, $"{entity.Name}: {Output(port.Output)}", Kind(binding), entity));
+                return false;
+
+            // The meters off: reported as master did, as an input without a binding.
+            case EntityType.Meter when !meters.IsAvailable:
+                events.Publish(new DeviceEventReceived(binding.Controller.Name, $"not handled, {raw}", DeviceEventKind.Regular));
+                return false;
+
+            // Only reported. The count of a request is not the controller's word - anyone in the network can call /megad: the
+            // meters are counted by the reads of the controller (the polling, the pages of the bot).
+            case EntityType.Meter:
+                events.Publish(new DeviceEventReceived(binding.Controller.Name, $"{entity.Name}: {Press(port.Press)}, cnt {port.Counter}", DeviceEventKind.Meter, entity));
                 return false;
 
             default:

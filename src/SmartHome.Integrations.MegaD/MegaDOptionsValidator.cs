@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using SmartHome.Core.Configuration;
 using SmartHome.Core.Entities;
+using System.Net;
 
 namespace SmartHome.Integrations.MegaD;
 
@@ -17,6 +18,10 @@ internal sealed class MegaDOptionsValidator(IOptions<HomeOptions> homeOptions) :
         var errors = new List<string>();
         var entities = homeOptions.Value.Entities.Where(x => x.Type != null).GroupBy(x => x.Id).ToDictionary(x => x.Key, x => x.First().Type!.Value);
         var bound = new Dictionary<string, string>();
+        var manualMeters = homeOptions.Value.Entities.Where(x => x.Type == EntityType.Meter && x.Meter?.PulseWeight == null).Select(x => x.Id).ToHashSet();
+
+        if (options.MeterCountsPerPulse < 1)
+            errors.Add($"{MegaDOptions.Section}:{nameof(MegaDOptions.MeterCountsPerPulse)} must be positive");
 
         void Bind(string entityId, string where)
         {
@@ -33,6 +38,8 @@ internal sealed class MegaDOptionsValidator(IOptions<HomeOptions> homeOptions) :
 
             if (!Uri.TryCreate(controller.Address, UriKind.Absolute, out var address) || address.Scheme != Uri.UriSchemeHttp)
                 errors.Add($"{prefix}: Address must be an http URL, e.g. http://192.168.0.11");
+            else if (options.AcceptOnlyControllers && !options.UseSimulator && !IPAddress.TryParse(address.Host, out _))
+                errors.Add($"{prefix}: Address must be an IP address - the requests of the controller are accepted only from it ({nameof(MegaDOptions.AcceptOnlyControllers)})");
 
             if (string.IsNullOrEmpty(controller.Password))
                 errors.Add($"{prefix}: Password is required (a secret: appsettings of the server, not the house files)");
@@ -97,6 +104,12 @@ internal sealed class MegaDOptionsValidator(IOptions<HomeOptions> homeOptions) :
                     case EntityType.Valve:
                         errors.Add($"{where}: valve '{entityId}' is bound in Valves, not in Ports");
                         break;
+                    case EntityType.Meter when hardwareInputs.Contains(port):
+                        errors.Add($"{where}: meter '{entityId}' on a hardware input");
+                        break;
+                    case EntityType.Meter when manualMeters.Contains(entityId):
+                        errors.Add($"{where}: meter '{entityId}' has no PulseWeight - its readings are entered from the menu, it is not bound");
+                        break;
                     case EntityType.Group:
                         errors.Add($"{where}: group '{entityId}' has no hardware, its switches are bound");
                         break;
@@ -104,7 +117,7 @@ internal sealed class MegaDOptionsValidator(IOptions<HomeOptions> homeOptions) :
             }
         }
 
-        foreach (var (id, type) in entities.Where(x => x.Value != EntityType.Group && !bound.ContainsKey(x.Key)))
+        foreach (var (id, type) in entities.Where(x => x.Value != EntityType.Group && !manualMeters.Contains(x.Key) && !bound.ContainsKey(x.Key)))
             errors.Add($"{type} '{id}' is not bound to a MegaD port");
 
         // The cleaning holds back the leak sensor of the valve: the sensor on its close input.

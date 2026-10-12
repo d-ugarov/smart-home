@@ -5,8 +5,9 @@ using System.Web;
 namespace SmartHome.Integrations.MegaD;
 
 /// <summary>
-/// Controllers in memory for local runs (<see cref="MegaDOptions.UseSimulator"/>): every port starts off, relays follow
-/// the commands, scenarios of inputs do nothing. Nothing leaves the machine.
+/// Controllers in memory for local runs (<see cref="MegaDOptions.UseSimulator"/>): every port starts off with its counter at
+/// zero, as after a start of a controller; relays follow the commands, scenarios of inputs do nothing. Nothing leaves the
+/// machine.
 /// </summary>
 internal sealed class MegaDSimulator(IOptions<MegaDOptions> options) : HttpMessageHandler
 {
@@ -48,7 +49,7 @@ internal sealed class MegaDSimulator(IOptions<MegaDOptions> options) : HttpMessa
                       ?? uri.Authority;
 
         if (!controllers.TryGetValue(address, out var ports))
-            controllers[address] = ports = Enumerable.Repeat("OFF", PortCount).ToArray();
+            controllers[address] = ports = Enumerable.Repeat("OFF/0", PortCount).ToArray();
 
         return ports;
     }

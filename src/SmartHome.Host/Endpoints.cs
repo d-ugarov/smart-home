@@ -17,6 +17,14 @@ public static class Endpoints
     {
         app.MapGet("/megad/{id}", async (string id, HttpRequest request, IMegaDRequestHandler handler, ILogger<IMegaDRequestHandler> logger) =>
         {
+            // Not 204: that would be "run your scenario" for a controller, and this is not one. Nothing is handled or reported.
+            if (!handler.IsFromController(id, request.HttpContext.Connection.RemoteIpAddress))
+            {
+                logger.LogWarning("MegaD {Id}: a request from {Sender} rejected, not the address of the controller: {Query}", id,
+                                  request.HttpContext.Connection.RemoteIpAddress, request.QueryString);
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
             var query = request.Query.Select(x => KeyValuePair.Create(x.Key, x.Value.ToString())).ToList();
 
             // Not the request token: once started, the processing goes to the end, as in master.
@@ -47,11 +55,11 @@ public static class Endpoints
         var text = new StringBuilder();
         text.AppendLine(page.Title);
 
-        foreach (var paragraph in page.Paragraphs)
+        foreach (var paragraph in page.Paragraphs.Concat(page.Tables))
             text.AppendLine().AppendLine(paragraph);
 
         text.AppendLine();
-        foreach (var button in page.Buttons.Concat(page.Footer))
+        foreach (var button in page.Buttons.Concat(page.Grid.SelectMany(x => x)).Concat(page.Footer))
             text.AppendLine($"[{button.Text}]  /debug/menu?action={Uri.EscapeDataString(button.Action.Serialize())}");
 
         return text.ToString();

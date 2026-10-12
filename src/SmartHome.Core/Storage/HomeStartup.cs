@@ -5,6 +5,7 @@ using SmartHome.Core.Common;
 using SmartHome.Core.Entities;
 using SmartHome.Core.Events;
 using SmartHome.Core.Home;
+using SmartHome.Core.Meters;
 using SmartHome.Core.Notifications;
 using SmartHome.Core.State;
 using SmartHome.Core.Valves;
@@ -14,8 +15,8 @@ namespace SmartHome.Core.Storage;
 
 /// <summary>
 /// Before anything else starts: the storage is created or upgraded, the state saved before the restart is back (so "on
-/// since" survives it), automations load what they scheduled, the cleanings of bathrooms and the notifications chosen by the
-/// owner are back. After everything has stopped: the state is saved.
+/// since" survives it), automations load what they scheduled, the cleanings of bathrooms, the notifications chosen by the
+/// owner and the readings of the meters are back. After everything has stopped: the state is saved.
 /// <para>
 /// The house does not depend on the storage: when it cannot be opened (full disk, rights, a broken file) the server
 /// works as <c>master</c> did - with the state in memory - and the owner is told.
@@ -28,6 +29,7 @@ internal sealed class HomeStartup(
     AutomationEngine automations,
     CleaningService cleaning,
     NotificationPreferences notifications,
+    MeterService meters,
     HomeEventBus events,
     ILogger<HomeStartup> logger) : IHostedLifecycleService
 {
@@ -61,6 +63,7 @@ internal sealed class HomeStartup(
         await automations.LoadAsync(fromStorage: true, cancellationToken);
         await cleaning.RestoreAsync(cancellationToken);
         await notifications.RestoreAsync(cancellationToken);
+        await meters.RestoreAsync(cancellationToken);
     }
 
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;

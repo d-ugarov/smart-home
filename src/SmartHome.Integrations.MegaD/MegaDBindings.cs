@@ -1,11 +1,15 @@
 using Microsoft.Extensions.Options;
 using SmartHome.Core.Entities;
 using SmartHome.Core.Home;
+using System.Net;
 
 namespace SmartHome.Integrations.MegaD;
 
 public sealed record MegaDController(string Id, string Name, Uri Address, string Password, IReadOnlySet<int> HardwareInputs)
 {
+    /// <summary> The address the requests of the controller come from; null - the address is a host name. </summary>
+    public IPAddress? Ip { get; } = IPAddress.TryParse(Address.Host, out var ip) ? ip : null;
+
     public override string ToString() => Name;
 }
 

@@ -12,8 +12,8 @@ public sealed record BotPage(int MessageId, string Text, List<List<BotButton>> R
 
     public bool HasFooter => Rows.Count > 0 && Rows[^1].Any(x => x.Text is "🔼 Dashboard");
 
-    /// <summary> Content rows: sub-pages and device buttons, one per row. </summary>
-    public IEnumerable<BotButton> Buttons => Rows.Take(Rows.Count - (HasFooter ? 1 : 0)).Select(x => x.Single());
+    /// <summary> Content rows of one button: sub-pages and device buttons; rows of several (a keypad) are left out. </summary>
+    public IEnumerable<BotButton> Buttons => Rows.Take(Rows.Count - (HasFooter ? 1 : 0)).Where(x => x.Count == 1).Select(x => x.Single());
 
     /// <summary> A button by its text; device buttons may be found without the state icon in front. </summary>
     public BotButton Find(string text) => Rows.SelectMany(x => x).SingleOrDefault(x => x.Text == text || x.Text.EndsWith(" " + text, StringComparison.Ordinal))

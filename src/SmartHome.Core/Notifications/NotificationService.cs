@@ -74,12 +74,14 @@ internal sealed class NotificationService(NotificationQueue queue, NotificationB
     {
         DeviceEventReceived {Kind: DeviceEventKind.LeakProtection} => NotificationCategory.Security,
         DeviceEventReceived {Kind: DeviceEventKind.Unknown} => NotificationCategory.System,
+        DeviceEventReceived {Kind: DeviceEventKind.Meter} => NotificationCategory.Meters,
         DeviceEventReceived => NotificationCategory.Events,
         ValveCommandExecuted or CleaningStarted or LeakHeldBack or CleaningEnded => NotificationCategory.Security,
         RuleCommandExecuted {Outcome: CommandOutcome.Sent {Result.IsSuccess: false}} => NotificationCategory.System,
         RuleCommandExecuted => NotificationCategory.Events,
         AutomationCommandExecuted {Outcome: CommandOutcome.Sent {Result.IsSuccess: false}} => NotificationCategory.System,
         AutomationCommandExecuted => NotificationCategory.Automation,
+        MeterReadingEntered => NotificationCategory.Meters,
         _ => NotificationCategory.System,
     };
 
@@ -97,6 +99,9 @@ internal sealed class NotificationService(NotificationQueue queue, NotificationB
         CleaningEnded {End: CleaningEnd.SensorWet} x => $"🚨 {x.Valve.Name}: cleaning over, the leak sensor is still wet — closing the valves",
         CleaningEnded x => $"⚠️ {x.Valve.Name}: cleaning over, the leak sensor could not be read — check it: a sensor still wet does not close the valves",
         DelayedActionDropped x => $"⚠️ {x.Origin}: {x.Action} not done, {Texts.Duration(x.Late)} late (the server was down)",
+        MeterReadingEntered x => $"✏️ {x.Meter.Name}: {Reading(x.Meter, x.Reading)} entered{(x.Previous is { } previous ? $", was {Reading(x.Meter, previous)}" : "")}",
+        MeterCounterReset x => $"⚠️ {x.Meter.Name}: the counter of the input went back from {x.From} to {x.To} without a restart of the controller the server saw — counted as one, "
+                               + "the pulses before it may be lost; check the reading by the dial",
         _ => null,
     };
 
@@ -107,6 +112,8 @@ internal sealed class NotificationService(NotificationQueue queue, NotificationB
             : [];
 
     private string Time(DateTimeOffset time) => clock.ToLocal(time).ToString("HH:mm", CultureInfo.InvariantCulture);
+
+    private static string Reading(Entity meter, decimal value) => $"{MeterMenu.Format(meter.Meter!, value)} {meter.Meter!.Unit}";
 
     private static string Command(SwitchCommand command) => command switch
     {

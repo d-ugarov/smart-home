@@ -57,6 +57,8 @@ public sealed partial class HomeOptionsValidator : IValidateOptions<HomeOptions>
 
             if (entity.Type != EntityType.Group && entity.Members.Count > 0)
                 errors.Add($"Entity '{entity.Id}': Members are only for groups");
+
+            ValidateMeter(entity, errors);
         }
 
         foreach (var group in options.Where(x => x.Type == EntityType.Group))
@@ -72,6 +74,25 @@ public sealed partial class HomeOptionsValidator : IValidateOptions<HomeOptions>
         }
 
         return result;
+    }
+
+    private static void ValidateMeter(EntityOptions entity, List<string> errors)
+    {
+        if (entity.Type != EntityType.Meter)
+        {
+            if (entity.Meter != null)
+                errors.Add($"Entity '{entity.Id}': Meter is only for meters");
+            return;
+        }
+
+        if (entity.Meter?.Resource == null)
+            errors.Add($"Meter '{entity.Id}': Meter.Resource is required (ColdWater, HotWater or Electricity)");
+
+        if (entity.Meter?.PulseWeight <= 0)
+            errors.Add($"Meter '{entity.Id}': Meter.PulseWeight must be positive");
+
+        if (MenuAction.ByteLength(new MenuAction.MeterInput(entity.Id, DateTimeOffset.MaxValue, MeterReadingInput.Longest)) > MenuAction.MaxLength)
+            errors.Add($"Meter '{entity.Id}': the id is too long for a Telegram button (64 bytes)");
     }
 
     private static void ValidateMenu(List<MenuPageOptions> pages, Dictionary<string, EntityOptions> entities, List<string> errors)
@@ -98,6 +119,9 @@ public sealed partial class HomeOptionsValidator : IValidateOptions<HomeOptions>
 
                 if (entity.Type == EntityType.Group)
                     errors.Add($"Menu page '{page.Id}': group '{item.Entity}' has no state of its own to show, list its switches");
+
+                if (entity.Type == EntityType.Meter)
+                    errors.Add($"Menu page '{page.Id}': meter '{item.Entity}' is shown on the page of the meters, not among the items");
 
                 if (entity.Type == EntityType.Valve && (item.Valve != null) == item.Cleaning)
                     errors.Add($"Menu page '{page.Id}': valve '{item.Entity}' needs either Valve (Open or Close) or Cleaning");
@@ -196,6 +220,9 @@ public sealed partial class HomeOptionsValidator : IValidateOptions<HomeOptions>
         {
             if (options.Automations.SelectMany(x => x.Rules).Any(x => x.Trigger?.At != null))
                 errors.Add($"{key} is required: schedules run by the local time of the house");
+
+            if (options.Entities.Any(x => x.Type == EntityType.Meter))
+                errors.Add($"{key} is required: the readings of the meters are kept by the local days of the house");
         }
         else if (!TimeZoneInfo.TryFindSystemTimeZoneById(options.TimeZone, out _))
         {

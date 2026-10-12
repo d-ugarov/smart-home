@@ -63,6 +63,13 @@ public sealed class FakeMegaD
         }
     }
 
+    /// <summary> The counter of an input (<c>cnt</c>), its state kept. </summary>
+    public void SetCounter(int port, int count)
+    {
+        lock (sync)
+            ports[port] = $"{ports[port].Split('/')[0]}/{count}";
+    }
+
     public HttpResponseMessage Handle(HttpRequestMessage request)
     {
         if (IsOffline)

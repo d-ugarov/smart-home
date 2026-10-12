@@ -1,12 +1,16 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SmartHome.Core.Common;
 using SmartHome.Core.Devices;
 using SmartHome.Core.Entities;
 
 namespace SmartHome.Integrations.MegaD;
 
-internal sealed class MegaDGateway(MegaDBindings bindings, MegaDClient client, ILogger<MegaDGateway> logger) : IDeviceGateway
+internal sealed class MegaDGateway(MegaDBindings bindings, MegaDClient client, IOptions<MegaDOptions> options, ILogger<MegaDGateway> logger) : IDeviceGateway
 {
+    /// <summary> <c>cnt</c> of an input: 0..65535, round. </summary>
+    public const int CounterModulus = 65536;
+
     public async Task<IReadOnlyDictionary<string, EntityValue>> ReadAsync(IReadOnlyCollection<Entity> entities, CancellationToken cancellationToken)
     {
         var result = new Dictionary<string, EntityValue>();
@@ -59,6 +63,9 @@ internal sealed class MegaDGateway(MegaDBindings bindings, MegaDClient client, I
 
     public Entity? LeakSensorOf(Entity valve) => bindings.LeakSensorOf(valve);
 
+    public PulseCounter? CounterOf(Entity meter) =>
+        meter.Type == EntityType.Meter && bindings.FindPort(meter) != null ? new PulseCounter(CounterModulus, options.Value.MeterCountsPerPulse) : null;
+
     private EntityValue? Parse(Entity entity, string[] ports)
     {
         if (bindings.FindValve(entity) is { } valve)
@@ -72,9 +79,13 @@ internal sealed class MegaDGateway(MegaDBindings bindings, MegaDClient client, I
             };
         }
 
-        return bindings.FindPort(entity) is { } port && ParseOnOff(ports, port.Port) is { } state
-            ? new OnOffValue(state)
-            : null;
+        if (bindings.FindPort(entity) is not { } port)
+            return null;
+
+        if (entity.Type == EntityType.Meter)
+            return ParseCounter(ports, port.Port) is { } count ? new CounterValue(count) : null;
+
+        return ParseOnOff(ports, port.Port) is { } state ? new OnOffValue(state) : null;
     }
 
     /// <summary> <c>ON</c>, <c>OFF</c>; an input may carry its press counter: <c>OFF/12</c>. </summary>
@@ -90,4 +101,10 @@ internal sealed class MegaDGateway(MegaDBindings bindings, MegaDClient client, I
             _ => null,
         };
     }
+
+    /// <summary> The counter of an input: <c>OFF/12</c> → 12. </summary>
+    internal static int? ParseCounter(string[] ports, int port) =>
+        port < ports.Length && ports[port].Split('/') is [_, var count] && int.TryParse(count.Trim(), out var value) && value is >= 0 and < CounterModulus
+            ? value
+            : null;
 }

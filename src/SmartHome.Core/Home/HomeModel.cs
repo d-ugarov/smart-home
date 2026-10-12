@@ -26,7 +26,7 @@ public sealed class HomeModel
     {
         var plain = options.Entities
                            .Where(x => x.Type != EntityType.Group)
-                           .Select(x => new Entity(x.Id, x.Name, x.Type!.Value, Icons(x)) {AutoOffAfter = x.AutoOffAfter})
+                           .Select(x => new Entity(x.Id, x.Name, x.Type!.Value, Icons(x)) {AutoOffAfter = x.AutoOffAfter, Meter = Meter(x)})
                            .ToDictionary(x => x.Id);
 
         Entities = options.Entities
@@ -64,6 +64,7 @@ public sealed class HomeModel
 
         Switches = Entities.Where(x => x.Type == EntityType.Switch).ToList();
         AutoOffSwitches = Switches.Where(x => x.AutoOffAfter != null).ToList();
+        Meters = Entities.Where(x => x.Type == EntityType.Meter).ToList();
     }
 
     /// <summary> In the order of the config. </summary>
@@ -73,6 +74,9 @@ public sealed class HomeModel
 
     /// <summary> Switches with <see cref="Entity.AutoOffAfter"/>. </summary>
     public IReadOnlyList<Entity> AutoOffSwitches { get; }
+
+    /// <summary> In the order of the config: the order of the statistics. </summary>
+    public IReadOnlyList<Entity> Meters { get; }
 
     public IReadOnlyList<MenuPageNode> Dashboard { get; }
 
@@ -184,6 +188,8 @@ public sealed class HomeModel
     };
 
     private static StateIcons? Icons(EntityOptions options) => options.Icons is { } icons ? new StateIcons(icons.On, icons.Off) : null;
+
+    private static MeterSpec? Meter(EntityOptions options) => options.Meter is { } meter ? new MeterSpec(meter.Resource!.Value, meter.PulseWeight) : null;
 }
 
 public sealed class MenuPageNode(string id, string title, MenuPageNode? parent, OnOff? listSwitches)

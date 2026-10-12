@@ -14,6 +14,9 @@ public sealed record Entity(string Id, string Name, EntityType Type, StateIcons?
     /// <summary> Switches of a <see cref="EntityType.Group"/>. </summary>
     public IReadOnlyList<Entity> Members { get; init; } = [];
 
+    /// <summary> What a <see cref="EntityType.Meter"/> measures and how. </summary>
+    public MeterSpec? Meter { get; init; }
+
     public override string ToString() => $"{Name} ({Id})";
 }
 
@@ -36,6 +39,9 @@ public enum EntityType
     /// hardware; used by automations.
     /// </summary>
     Group,
+
+    /// <summary> A meter of water or electricity: it counts the pulses of an input, or its readings are entered from the menu. </summary>
+    Meter,
 }
 
 public enum OnOff
@@ -97,3 +103,23 @@ public abstract record EntityValue;
 public sealed record OnOffValue(OnOff State) : EntityValue;
 
 public sealed record ValveValue(ValveActivity Activity) : EntityValue;
+
+/// <summary> The pulse counter of an input as the device keeps it: it goes round and may start from zero again. </summary>
+public sealed record CounterValue(int Count) : EntityValue;
+
+public enum MeterResource
+{
+    ColdWater,
+    HotWater,
+    Electricity,
+}
+
+/// <param name="PulseWeight"> How much one pulse of the meter is, in <see cref="Unit"/>; null - the readings are entered from the menu. </param>
+public sealed record MeterSpec(MeterResource Resource, decimal? PulseWeight)
+{
+    public bool CountsPulses => PulseWeight != null;
+
+    public bool IsWater => Resource is MeterResource.ColdWater or MeterResource.HotWater;
+
+    public string Unit => IsWater ? "m³" : "kWh";
+}

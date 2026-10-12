@@ -42,6 +42,18 @@ public class StartupValidationTests
     [TestCase("Home:Menu:0:Pages:2:Pages:0:Items:0:Cleaning", "true", "Cleaning is set for 'sensor.bathroom_leak', which is not a valve", TestName = "Cleaning of a sensor")]
     [TestCase("MegaD:Controllers:1:Ports:6", null, "Valve 'valve.bathroom' has a cleaning button, but no sensor is bound to its close input",
               TestName = "Cleaning without a leak sensor")]
+    [TestCase("Home:Entities:22:Meter:PulseWeight", "0", "Meter.PulseWeight must be positive", TestName = "Pulse weight zero")]
+    [TestCase("Home:Entities:22:Type", "Sensor", "Meter is only for meters", TestName = "Meter options of a sensor")]
+    [TestCase("Home:Entities:24:Meter:PulseWeight", "0.01", "Meter 'meter.electricity_day' is not bound to a MegaD port", TestName = "Pulse meter without an input")]
+    [TestCase("MegaD:Controllers:2:Ports:4", "meter.electricity_day", "has no PulseWeight - its readings are entered from the menu", TestName = "Meter without pulses on an input")]
+    [TestCase("MegaD:Controllers:1:Ports:15", "meter.bathroom_cold_water", "meter 'meter.bathroom_cold_water' on a hardware input", TestName = "Meter on a leak protection input")]
+    [TestCase("Home:Menu:0:Pages:0:Items:0:Entity", "meter.bathroom_cold_water", "is shown on the page of the meters", TestName = "Meter among menu items")]
+    [TestCase("Home:Entities:25:Id", "meter.electricity_night_tariff_of_the_flat_of_the_example", "the id is too long for a Telegram button",
+              TestName = "Meter id too long for the keypad")]
+    [TestCase("Home:TimeZone", null, "the readings of the meters are kept by the local days of the house", TestName = "Meters without a time zone")]
+    [TestCase("MegaD:Controllers:1:Address", "http://megad-1.home", "Address must be an IP address - the requests of the controller are accepted only from it",
+              TestName = "Controller by a host name")]
+    [TestCase("MegaD:MeterCountsPerPulse", "0", "MegaD:MeterCountsPerPulse must be positive", TestName = "No counts per pulse")]
     public async Task BrokenConfig_ServerDoesNotStart(string key, string? value, string reason)
     {
         await using var factory = new HomeServerFactory(House.Example, new Dictionary<string, string?> {[key] = value});

@@ -54,8 +54,8 @@ internal sealed class TelegramBotService(
         return InvokeOperations.InvokeAsync(logger, "Telegram: message", async () =>
         {
             var page = await menu.HandleAsync(new MenuAction.Dashboard(), cancellationToken);
-            var (text, keyboard) = TelegramMenuRenderer.Render(page);
-            await bot.SendMessage(message.Chat.Id, text, replyMarkup: keyboard, cancellationToken: cancellationToken);
+            var (text, keyboard, parseMode) = TelegramMenuRenderer.Render(page);
+            await bot.SendMessage(message.Chat.Id, text, parseMode, replyMarkup: keyboard, cancellationToken: cancellationToken);
         });
     }
 
@@ -69,8 +69,8 @@ internal sealed class TelegramBotService(
             await bot.AnswerCallbackQuery(query.Id, cancellationToken: cancellationToken);
 
             var page = await menu.HandleAsync(MenuAction.Parse(query.Data), cancellationToken);
-            var (text, keyboard) = TelegramMenuRenderer.Render(page);
-            await bot.EditMessageText(message.Chat.Id, message.MessageId, text, replyMarkup: keyboard, cancellationToken: cancellationToken);
+            var (text, keyboard, parseMode) = TelegramMenuRenderer.Render(page);
+            await bot.EditMessageText(message.Chat.Id, message.MessageId, text, parseMode, replyMarkup: keyboard, cancellationToken: cancellationToken);
         });
     }
 

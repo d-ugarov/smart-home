@@ -58,6 +58,20 @@ public abstract record MenuAction
     /// <param name="Mode"> The mode the button sets, not "the next one": a press on an old message sets what it showed. </param>
     public sealed record ChangeNotifications(NotificationCategory Category, NotificationMode Mode) : MenuAction;
 
+    /// <summary> The page of all meters: the readings and the consumption for the period. </summary>
+    public sealed record Meters(MeterPeriod Period) : MenuAction;
+
+    /// <param name="Year"> The table of the last 12 months instead of the short statistics. </param>
+    public sealed record Meter(string EntityId, bool Year) : MenuAction;
+
+    /// <summary>
+    /// The keypad of a reading: every button carries the digits it leads to, the server keeps nothing between the presses.
+    /// </summary>
+    /// <param name="Opened"> When the keypad was opened: a keypad left in an old message does not save. </param>
+    public sealed record MeterInput(string EntityId, DateTimeOffset Opened, string Digits) : MenuAction;
+
+    public sealed record SaveMeter(string EntityId, DateTimeOffset Opened, string Digits) : MenuAction;
+
     public string Serialize() => this switch
     {
         Dashboard => "home",
@@ -77,6 +91,10 @@ public abstract record MenuAction
         ChangeCleaning x => Join("cc", x.PageId, x.EntityId, x.Change.ToString()),
         Notifications => "n",
         ChangeNotifications x => Join("n", x.Category.ToString(), x.Mode.ToString()),
+        Meters x => Join("m", x.Period.ToString()),
+        Meter x => Join(x.Year ? "my" : "mt", x.EntityId),
+        MeterInput x => Join("mk", x.EntityId, Number(x.Opened.ToUnixTimeSeconds()), x.Digits),
+        SaveMeter x => Join("ms", x.EntityId, Number(x.Opened.ToUnixTimeSeconds()), x.Digits),
         _ => throw new NotSupportedException(GetType().Name),
     };
 
@@ -108,9 +126,19 @@ public abstract record MenuAction
             ["n", var category, var mode]
                 when Enum.TryParse<NotificationCategory>(category, out var c) && Enum.IsDefined(c) && Enum.TryParse<NotificationMode>(mode, out var m) && Enum.IsDefined(m)
                 => new ChangeNotifications(c, m),
+            ["m", var period] when Enum.TryParse<MeterPeriod>(period, out var p) && Enum.IsDefined(p) => new Meters(p),
+            ["mt", var meter] => new Meter(meter, Year: false),
+            ["my", var meter] => new Meter(meter, Year: true),
+            ["mk", var meter, var opened, var digits] when Time(opened) is { } time && MeterReadingInput.IsValid(digits) => new MeterInput(meter, time, digits),
+            ["ms", var meter, var opened, var digits] when Time(opened) is { } time && MeterReadingInput.IsValid(digits) => new SaveMeter(meter, time, digits),
             _ => new Dashboard(),
         };
     }
+
+    private static DateTimeOffset? Time(string text) =>
+        long.TryParse(text, CultureInfo.InvariantCulture, out var seconds) && seconds >= 0 && seconds <= DateTimeOffset.MaxValue.ToUnixTimeSeconds()
+            ? DateTimeOffset.FromUnixTimeSeconds(seconds)
+            : null;
 
     public static int ByteLength(MenuAction action) => Encoding.UTF8.GetByteCount(action.Serialize());
 
@@ -130,6 +158,13 @@ public enum VacationChange
     MinusDay,
 
     End,
+}
+
+public enum MeterPeriod
+{
+    ThisMonth,
+    LastMonth,
+    Year,
 }
 
 /// <summary> The cleaning lasts this long from the press; a press during the cleaning moves its end. </summary>

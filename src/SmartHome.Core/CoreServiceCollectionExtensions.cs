@@ -7,6 +7,7 @@ using SmartHome.Core.Configuration;
 using SmartHome.Core.Events;
 using SmartHome.Core.Home;
 using SmartHome.Core.Menu;
+using SmartHome.Core.Meters;
 using SmartHome.Core.Notifications;
 using SmartHome.Core.Rules;
 using SmartHome.Core.State;
@@ -29,6 +30,7 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<IValidateOptions<AutomationSettings>, AutomationSettingsValidator>();
         services.AddOptions<CleaningSettings>().BindConfiguration(CleaningSettings.Section);
         services.AddOptions<NotificationSettings>().BindConfiguration(NotificationSettings.Section);
+        services.AddOptions<MeterSettings>().BindConfiguration(MeterSettings.Section);
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<HomeModel>();
@@ -44,10 +46,15 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<CleaningMenu>();
         services.AddSingleton<NotificationPreferences>();
         services.AddSingleton<NotificationMenu>();
+        services.AddSingleton<MeterPersistence>();
+        services.AddSingleton<MeterService>();
+        services.AddSingleton<MeterMenu>();
         services.AddSingleton<MenuService>();
 
         // First: the saved state is back before anything reads or changes it.
         services.AddHostedService<HomeStartup>();
+        // Stops after everything that changes the readings: the queue is written out.
+        services.AddSingleton<IHostedService>(x => x.GetRequiredService<MeterPersistence>());
 
         services.AddSingleton<NotificationQueue>();
         services.AddSingleton<NotificationBursts>();
@@ -55,6 +62,7 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<StatePersistence>();
         services.AddSingleton<IHomeEventHandler>(x => x.GetRequiredService<StatePersistence>());
         services.AddSingleton<IHomeEventHandler>(x => x.GetRequiredService<AutomationEngine>());
+        services.AddSingleton<IHomeEventHandler>(x => x.GetRequiredService<MeterService>());
         services.AddSingleton<IHostedService>(x => x.GetRequiredService<StatePersistence>());
         services.AddHostedService<NotificationSender>();
         services.AddHostedService<HomeEventDispatcher>();

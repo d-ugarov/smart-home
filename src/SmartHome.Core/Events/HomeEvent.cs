@@ -22,6 +22,9 @@ public enum DeviceEventKind
 
     /// <summary> A device the server does not know. </summary>
     Unknown,
+
+    /// <summary> A pulse of a meter. </summary>
+    Meter,
 }
 
 /// <param name="DeviceId"> Unique among integrations, e.g. <c>megad:1</c>. </param>
@@ -53,6 +56,15 @@ public enum CleaningEnd
 
     SensorNotRead,
 }
+
+/// <param name="Previous"> Null - the first reading of the meter. </param>
+public sealed record MeterReadingEntered(Entity Meter, decimal Reading, decimal? Previous) : HomeEvent;
+
+/// <summary>
+/// The counter of a meter went back without a restart of its device the server knows of: counted as a restart, the pulses
+/// between the last count seen and the restart are lost.
+/// </summary>
+public sealed record MeterCounterReset(Entity Meter, int From, int To) : HomeEvent;
 
 /// <summary> Something the owner has to look at: the server works, but not fully. </summary>
 public sealed record ServerProblem(string Text) : HomeEvent;

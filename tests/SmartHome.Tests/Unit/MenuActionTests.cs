@@ -26,6 +26,12 @@ public class MenuActionTests
         new MenuAction.ChangeCleaning("water", "valve.bathroom", CleaningChange.TwoHours),
         new MenuAction.Notifications(),
         new MenuAction.ChangeNotifications(NotificationCategory.Automation, NotificationMode.Silent),
+        new MenuAction.Meters(MeterPeriod.LastMonth),
+        new MenuAction.Meter("meter.bathroom_cold_water", Year: false),
+        new MenuAction.Meter("meter.bathroom_cold_water", Year: true),
+        new MenuAction.MeterInput("meter.bathroom_cold_water", new DateTimeOffset(2026, 10, 11, 12, 30, 0, TimeSpan.Zero), ""),
+        new MenuAction.MeterInput("meter.bathroom_cold_water", new DateTimeOffset(2026, 10, 11, 12, 30, 0, TimeSpan.Zero), "0.5"),
+        new MenuAction.SaveMeter("meter.electricity_day", new DateTimeOffset(2026, 10, 11, 12, 30, 0, TimeSpan.Zero), "123456789.123"),
     ];
 
     [TestCaseSource(nameof(actions))]
@@ -53,6 +59,15 @@ public class MenuActionTests
     [TestCase("n:Events:5", TestName = "Undefined notification mode")]
     [TestCase("n:9:Off", TestName = "Undefined notification category")]
     [TestCase("n:Events", TestName = "Notification category without a mode")]
+    [TestCase("m:Week", TestName = "Unknown meter period")]
+    [TestCase("m:7", TestName = "Undefined meter period")]
+    [TestCase("mk:meter.bathroom_cold_water:1791676800:12a", TestName = "Letters in a reading")]
+    [TestCase("mk:meter.bathroom_cold_water:1791676800:1.2.3", TestName = "Two points in a reading")]
+    [TestCase("ms:meter.bathroom_cold_water:1791676800:1234567890", TestName = "Ten digits before the point")]
+    [TestCase("ms:meter.bathroom_cold_water:1791676800:1.2345", TestName = "Four digits after the point")]
+    [TestCase("ms:meter.bathroom_cold_water:1791676800:007", TestName = "Leading zeros")]
+    [TestCase("ms:meter.bathroom_cold_water:-5:1", TestName = "Negative keypad time")]
+    [TestCase("ms:meter.bathroom_cold_water:1", TestName = "Save without the keypad time")]
     public void Unknown_IsDashboard(string? data)
     {
         Assert.That(MenuAction.Parse(data), Is.EqualTo(new MenuAction.Dashboard()));

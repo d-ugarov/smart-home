@@ -83,6 +83,47 @@ namespace SmartHome.Persistence.Migrations
                     b.ToTable("EntityStates");
                 });
 
+            modelBuilder.Entity("SmartHome.Persistence.MeterDayRow", b =>
+                {
+                    b.Property<string>("EntityId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Entered")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Reading")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("EntityId", "Date");
+
+                    b.ToTable("MeterDays");
+                });
+
+            modelBuilder.Entity("SmartHome.Persistence.MeterRow", b =>
+                {
+                    b.Property<string>("EntityId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Counter")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly?>("EnteredOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("Reading")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("EntityId");
+
+                    b.ToTable("Meters");
+                });
+
             modelBuilder.Entity("SmartHome.Persistence.SettingRow", b =>
                 {
                     b.Property<string>("Key")

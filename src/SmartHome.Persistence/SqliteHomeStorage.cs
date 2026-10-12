@@ -132,4 +132,55 @@ internal sealed class SqliteHomeStorage(IDbContextFactory<HomeDbContext> context
 
         await context.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<StoredMeter>> LoadMetersAsync(CancellationToken cancellationToken)
+    {
+        using var _ = await gate.EnterAsync(cancellationToken);
+        await using var context = await contexts.CreateDbContextAsync(cancellationToken);
+        return await context.Meters.AsNoTracking()
+                            .Select(x => new StoredMeter(x.EntityId, x.Reading, x.Counter, x.UpdatedAt, x.EnteredOn))
+                            .ToListAsync(cancellationToken);
+    }
+
+    public async Task SaveMetersAsync(IReadOnlyCollection<StoredMeter> meters, IReadOnlyCollection<StoredMeterDay> days, CancellationToken cancellationToken)
+    {
+        using var _ = await gate.EnterAsync(cancellationToken);
+        await using var context = await contexts.CreateDbContextAsync(cancellationToken);
+
+        foreach (var meter in meters)
+        {
+            var row = await context.Meters.FindAsync([meter.EntityId], cancellationToken);
+            if (row == null)
+                context.Meters.Add(row = new MeterRow {EntityId = meter.EntityId});
+
+            row.Reading = meter.Reading;
+            row.Counter = meter.Counter;
+            row.UpdatedAt = meter.UpdatedAt;
+            row.EnteredOn = meter.EnteredOn;
+        }
+
+        foreach (var day in days)
+        {
+            var row = await context.MeterDays.FindAsync([day.EntityId, day.Date], cancellationToken);
+            if (row == null)
+                context.MeterDays.Add(row = new MeterDayRow {EntityId = day.EntityId, Date = day.Date});
+
+            row.Reading = day.Reading;
+            row.Entered |= day.Entered;
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<StoredMeterDay>> LoadMeterDaysAsync(string entityId, DateOnly from, CancellationToken cancellationToken)
+    {
+        using var _ = await gate.EnterAsync(cancellationToken);
+        await using var context = await contexts.CreateDbContextAsync(cancellationToken);
+
+        var days = context.MeterDays.AsNoTracking().Where(x => x.EntityId == entityId);
+        var before = await days.Where(x => x.Date < from).OrderByDescending(x => x.Date).Take(1).ToListAsync(cancellationToken);
+        var since = await days.Where(x => x.Date >= from).OrderBy(x => x.Date).ToListAsync(cancellationToken);
+
+        return before.Concat(since).Select(x => new StoredMeterDay(x.EntityId, x.Date, x.Reading, x.Entered)).ToList();
+    }
 }

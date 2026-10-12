@@ -45,6 +45,20 @@ public sealed class EntityOptions
 
     /// <summary> Groups only: the switches of the group. </summary>
     public List<string> Members { get; init; } = [];
+
+    /// <summary> Meters only. </summary>
+    public MeterOptions? Meter { get; init; }
+}
+
+public sealed class MeterOptions
+{
+    public MeterResource? Resource { get; init; }
+
+    /// <summary>
+    /// A meter with pulses: how much one pulse is, in m³ or kWh - from the passport of the meter, e.g. <c>0.01</c> for 10 L.
+    /// It is set once and never changes. The readings of a meter without it are entered from the menu.
+    /// </summary>
+    public decimal? PulseWeight { get; init; }
 }
 
 public sealed class StateIconsOptions

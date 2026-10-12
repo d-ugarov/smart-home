@@ -12,7 +12,7 @@ namespace SmartHome.Core.Menu;
 /// The menu of the house as in <c>master</c>: a page shows sub-pages, then its items with the state read from the
 /// devices right now, then the dynamic list; a press on a switch toggles it and draws the page again.
 /// New: a valve button opens or closes the valve after a confirmation; the pages of automations and schedules and the
-/// cleaning of bathrooms and the page of notifications, when they are on.
+/// cleaning of bathrooms, the pages of the meters and of notifications, when they are on.
 /// </summary>
 public sealed class MenuService(
     HomeModel home,
@@ -23,6 +23,7 @@ public sealed class MenuService(
     ScheduleMenu schedules,
     CleaningMenu cleaning,
     NotificationMenu notifications,
+    MeterMenu meters,
     ILogger<MenuService> logger)
 {
     public async Task<MenuPage> HandleAsync(MenuAction action, CancellationToken cancellationToken)
@@ -79,6 +80,18 @@ public sealed class MenuService(
             case MenuAction.ChangeNotifications x when notifications.IsAvailable:
                 return await notifications.ChangeAsync(x.Category, x.Mode, cancellationToken);
 
+            case MenuAction.Meters x when meters.IsAvailable:
+                return await meters.RenderAllAsync(x.Period, cancellationToken);
+
+            case MenuAction.Meter x when meters.IsAvailable && meters.FindMeter(x.EntityId) is { } meter:
+                return await meters.RenderMeterAsync(meter, x.Year, cancellationToken);
+
+            case MenuAction.MeterInput x when meters.IsAvailable && meters.FindMeter(x.EntityId) is { } meter:
+                return meters.RenderInput(meter, x.Opened, x.Digits);
+
+            case MenuAction.SaveMeter x when meters.IsAvailable && meters.FindMeter(x.EntityId) is { } meter:
+                return await meters.SaveAsync(meter, x.Opened, x.Digits, cancellationToken);
+
             default:
                 return Dashboard();
         }
@@ -91,6 +104,8 @@ public sealed class MenuService(
             buttons.Add(new MenuButton(MenuTexts.AutomationsButton, new MenuAction.Automations()));
         if (schedules.IsAvailable)
             buttons.Add(new MenuButton(MenuTexts.SchedulesButton, new MenuAction.Schedules()));
+        if (meters.IsAvailable)
+            buttons.Add(new MenuButton(MenuTexts.MetersButton, new MenuAction.Meters(MeterPeriod.ThisMonth)));
         if (notifications.IsAvailable)
             buttons.Add(new MenuButton(MenuTexts.NotificationsButton, new MenuAction.Notifications()));
 

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
 using SmartHome.Tests.Fakes;
+using System.Net;
 
 namespace SmartHome.Tests.Infrastructure;
 
@@ -61,11 +63,36 @@ public sealed class HomeServerFactory(House house, IReadOnlyDictionary<string, s
             // The simulator of local runs stays in place: it is what such a test checks.
             var simulated = settings?.GetValueOrDefault("MegaD:UseSimulator") == "true" ? MegaDClientName : null;
             services.AddSingleton<IPostConfigureOptions<HttpClientFactoryOptions>>(new FakeNetworkInstaller(Network, simulated));
+            services.AddSingleton<IStartupFilter>(new SenderAddress(house.Devices.ToDictionary(x => x.Id, x => IPAddress.Parse(new Uri(x.Url).Host))));
             testServices?.Invoke(services);
         });
     }
 
     private const string MegaDClientName = "megad";
+
+    /// <summary> The test sets the address a request comes from, e.g. a stranger in the network. </summary>
+    public const string SenderHeader = "X-Test-Sender";
+
+    /// <summary>
+    /// The test server has no network: the address of a request is set here. <c>/megad/{id}</c> comes from controller
+    /// <c>id</c> (from the first controller when there is no such id) unless the test says otherwise.
+    /// </summary>
+    private sealed class SenderAddress(IReadOnlyDictionary<string, IPAddress> controllers) : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((context, nextMiddleware) =>
+            {
+                if (context.Request.Headers.TryGetValue(SenderHeader, out var sender))
+                    context.Connection.RemoteIpAddress = IPAddress.Parse(sender.ToString());
+                else if (context.Request.Path.StartsWithSegments("/megad", out var rest))
+                    context.Connection.RemoteIpAddress = controllers.GetValueOrDefault(rest.Value!.Trim('/')) ?? controllers.Values.First();
+
+                return nextMiddleware();
+            });
+            next(app);
+        };
+    }
 
     private sealed class FakeNetworkInstaller(FakeNetwork network, string? skippedClient) : IPostConfigureOptions<HttpClientFactoryOptions>
     {

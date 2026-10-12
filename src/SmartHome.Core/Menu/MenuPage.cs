@@ -4,7 +4,14 @@ namespace SmartHome.Core.Menu;
 /// A page of the menu as data: information (title and text, read only) and actions (buttons, one per row, and the
 /// footer row). Clients only draw it - the Telegram bot now, the REST API later.
 /// </summary>
-public sealed record MenuPage(string Title, IReadOnlyList<string> Paragraphs, IReadOnlyList<MenuButton> Buttons, IReadOnlyList<MenuButton> Footer);
+public sealed record MenuPage(string Title, IReadOnlyList<string> Paragraphs, IReadOnlyList<MenuButton> Buttons, IReadOnlyList<MenuButton> Footer)
+{
+    /// <summary> Tables after the paragraphs: lines aligned by spaces, shown in a fixed-width font. </summary>
+    public IReadOnlyList<string> Tables { get; init; } = [];
+
+    /// <summary> Rows of several buttons after <see cref="Buttons"/>, e.g. a keypad. </summary>
+    public IReadOnlyList<IReadOnlyList<MenuButton>> Grid { get; init; } = [];
+}
 
 public sealed record MenuButton(string Text, MenuAction Action);
 
@@ -30,4 +37,8 @@ public static class MenuTexts
     public const string CleaningMark = "🧽";
     public const string Notifications = "🔔 Notifications";
     public const string NotificationsButton = "🔔 Notifications";
+    public const string Meters = "📊 Meters";
+    public const string MetersButton = "📊 Meters";
+    public const string Water = "💧";
+    public const string Electricity = "⚡";
 }
